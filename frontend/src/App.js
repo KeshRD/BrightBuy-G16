@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import AuthPage from './components/AuthPage';
 import HomePage from './components/HomePage';
 import ProductDetail from './components/ProductDetail';
+import CartPage from './components/CartPage';
 import './App.css';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<AuthPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/product/:productId" element={<ProductDetail />} />
+        <Route path="/cart" element={<CartPage />} />
       </Routes>
     </div>
   );

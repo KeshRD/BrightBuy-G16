@@ -1,4 +1,4 @@
-// src/components/HomePage.js
+// src/components/HomePage.js (Updated: Added token check, View Cart button, logout clears storage)
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,11 @@ const HomePage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      navigate('/');
+      return;
+    }
+
     const fetchProducts = async () => {
       try {
         const response = await axios.get('http://localhost:5000/products');
@@ -17,22 +22,28 @@ const HomePage = () => {
       }
     };
     fetchProducts();
-  }, []);
+  }, [navigate]);
 
   const handleProductClick = (productId) => {
     navigate(`/product/${productId}`);
   };
 
   const handleLogout = () => {
-    navigate('/'); // Navigate to AuthPage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
+    navigate('/');
   };
 
   return (
     <div className="App-header">
       <h2>Our Products</h2>
-      <button className="logout-button" onClick={handleLogout}>
-        Logout
-      </button>
+      <div className="button-group">
+        <button onClick={() => navigate('/cart')}>View Cart</button>
+        <button className="logout-button" onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
       <div className="product-grid">
         {products.map((product) => (
           <div key={product.product_id} className="product-card" onClick={() => handleProductClick(product.product_id)}>

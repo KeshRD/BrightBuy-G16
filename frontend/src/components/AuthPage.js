@@ -1,5 +1,5 @@
-// src/components/AuthPage.js
-import React, { useState } from 'react';
+// src/components/AuthPage.js (Updated: Handle token and user storage, auto-redirect if logged in)
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,12 @@ const AuthPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (localStorage.getItem('token')) {
+      navigate('/home');
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -22,7 +28,10 @@ const AuthPage = () => {
       try {
         const response = await axios.post('http://localhost:5000/login', { email, password });
         if (response.data.success) {
-          navigate('/Home');
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+          navigate('/home');
         } else {
           setError('Please enter valid credentials');
         }
@@ -38,7 +47,7 @@ const AuthPage = () => {
       try {
         const response = await axios.post('http://localhost:5000/signup', { name, email, password, phone, role });
         if (response.data.success) {
-          setIsLogin(true); // Switch to login after signup
+          setIsLogin(true);
           setError('Signup successful! Please login.');
         } else {
           setError('Signup failed');
