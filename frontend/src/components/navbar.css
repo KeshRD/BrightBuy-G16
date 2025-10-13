@@ -1,0 +1,84 @@
+/* src/components/Navbar.css */
+.navbar {
+    width: 100%;
+    background-color: #1c1e22;
+    /* Changed right padding from 30px to 50px to add more space */
+    padding: 15px 50px 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    /* Add box-sizing to ensure padding is included in the width */
+    box-sizing: border-box; 
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #61dafb;
+    cursor: pointer;
+}
+
+.navbar-icons {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.navbar-icon {
+    position: relative;
+    cursor: pointer;
+    color: white;
+}
+
+/* You might want to style the new img icons */
+.navbar-icon img {
+    filter: invert(1); /* This will make black SVGs turn white */
+}
+
+
+.cart-icon .cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -12px;
+    background-color: #ff4d4f;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 35px;
+    right: 0;
+    background-color: #282c34;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    overflow: hidden;
+    width: 150px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dropdown-menu a {
+    padding: 12px 15px;
+    color: white;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.dropdown-menu a:hover {
+    background-color: #35383f;
+    /* 'right' property is not valid here, so I removed it */
+}
+
+/* The extra closing brace was here, I have removed it */

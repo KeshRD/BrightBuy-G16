@@ -1,0 +1,17 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
+function Checkout() {
+    const navigate = useNavigate();
+    return (
+        <div className="App-header">
+       
+            <button onClick={() => navigate('/cart')}>Back</button>
+            <h2>Checkout Page</h2>
+            <p>This is a placeholder for the checkout process.</p>
+        </div>
+    );
+}
+
+export default Checkout;
