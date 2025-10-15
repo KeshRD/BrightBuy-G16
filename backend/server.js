@@ -86,26 +86,19 @@ app.post('/login', async (req, res) => {
 
 app.post('/signup', async (req, res) => {
   const { name, email, password, phone, role } = req.body;
-  console.log('Signup attempt:', { email, role });
   try {
     const check = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
     if (check.rows.length > 0) {
-      console.error('Signup failed: Email already exists', email);
       return res.json({ success: false, message: 'Email already exists' });
     }
-
-    const maxIdResult = await pool.query('SELECT MAX(user_id) FROM "User"');
-    const nextId = (maxIdResult.rows[0].max || 0) + 1;
-
     const hashedPassword = await bcrypt.hash(password, 10);
+    // Assuming user_id is auto-incrementing (SERIAL or IDENTITY)
     await pool.query(
-      'INSERT INTO "User" (user_id, name, email, password, phone, role) VALUES ($1, $2, $3, $4, $5, $6)',
-      [nextId, name, email, hashedPassword, phone, role]
+      'INSERT INTO "User" (name, email, password, phone, role) VALUES ($1, $2, $3, $4, $5)',
+      [name, email, hashedPassword, phone, role]
     );
-    console.log('Signup successful:', { userId: nextId, email });
     res.json({ success: true });
   } catch (err) {
-    console.error('Signup error:', err.stack);
     res.status(500).json({ success: false, message: 'Server error during signup' });
   }
 });

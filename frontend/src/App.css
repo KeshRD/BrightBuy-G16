@@ -70,6 +70,7 @@ button:hover {
 .product-card-image {
   width: 100%;
   height: 100%;
+  height: 150px;
   object-fit: cover; /* Prevents image distortion */
   border-radius: 4px;
   margin-bottom: 15px;
