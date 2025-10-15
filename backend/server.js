@@ -4,15 +4,25 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const adminRoutes = require('./routes/admin');
 require('dotenv').config();
+
 
 const app = express();
 app.use(cors());
+
+app.use('/Assets', express.static(__dirname + '/Assets'));
+
 
 // CORRECTED: The default express.json() line was removed.
 // These two lines now correctly set the size limit for all requests.
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/admin', adminRoutes);
+
+// server.js
+app.use('/api/admin', adminRoutes);
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -362,6 +372,21 @@ app.get('/orders', authenticate, async (req, res) => {
         console.error('Error fetching orders:', err.stack);
         res.status(500).json({ success: false, message: 'Failed to fetch orders' });
     }
+});
+
+// TEMP: debug endpoint to inspect User table schema
+app.get('/debug/user-columns', async (req, res) => {
+  try {
+    const q = `SELECT column_name, data_type, is_nullable, column_default
+               FROM information_schema.columns
+               WHERE lower(table_name) = 'user'
+               ORDER BY ordinal_position`;
+    const { rows } = await pool.query(q);
+    res.json(rows);
+  } catch (err) {
+    console.error('Debug schema error:', err.stack || err);
+    res.status(500).json({ error: 'Failed to fetch schema info' });
+  }
 });
 const PORT = 5000;
 app.listen(PORT, () => {

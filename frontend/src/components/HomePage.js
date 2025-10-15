@@ -38,6 +38,12 @@ const HomePage = () => {
         <div className="product-grid">
           {products.map((product) => (
             <div key={product.product_id} className="product-card" onClick={() => handleProductClick(product.product_id)}>
+            <img
+              src={`http://localhost:5000${product.image}`}
+              alt={product.product_name}
+              className="product-card-image"
+            />
+
               <img src={product.image} alt={product.product_name} className="product-card-image" />
               <h3>{product.product_name}</h3>
               <p>{product.description}</p>

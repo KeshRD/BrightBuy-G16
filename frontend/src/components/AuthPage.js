@@ -1,7 +1,9 @@
-// src/components/AuthPage.js (Updated: Handle token and user storage, auto-redirect if logged in)
+// src/components/AuthPage.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,9 +15,16 @@ const AuthPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // ✅ Auto-redirect if already logged in
   useEffect(() => {
-    if (localStorage.getItem('token')) {
-      navigate('/home');
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (token && user) {
+      if (user.role === 'Admin') {
+        navigate('/admin');
+      } else {
+        navigate('/home');
+      }
     }
   }, [navigate]);
 
@@ -24,36 +33,58 @@ const AuthPage = () => {
     setError('');
 
     if (isLogin) {
-      // Login
+      // === LOGIN ===
       try {
-        const response = await axios.post('http://localhost:5000/login', { email, password });
-        if (response.data.success) {
+        const response = await axios.post(`${API_URL}/login`, { email, password });
+
+        if (response.data && response.data.success) {
+          const user = response.data.user;
+
+          // store token + user info
           localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+          localStorage.setItem('user', JSON.stringify(user));
           axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-          navigate('/home');
+
+          // ✅ Redirect based on role
+          if (user.role === 'Admin') {
+            navigate('/admin');
+          } else {
+            navigate('/home');
+          }
         } else {
-          setError('Please enter valid credentials');
+          setError(response.data?.message || 'Please enter valid credentials');
         }
       } catch (err) {
-        setError('Login failed');
+        console.error('Login error', err);
+        setError(
+          err.response?.data?.message || 'Login failed'
+        );
       }
     } else {
-      // Signup
+      // === SIGNUP ===
       if (!name || !email || !password || !phone || !role) {
         setError('Please fill all fields');
         return;
       }
+
       try {
-        const response = await axios.post('http://localhost:5000/signup', { name, email, password, phone, role });
-        if (response.data.success) {
+        const response = await axios.post(`${API_URL}/signup`, {
+          name,
+          email,
+          password,
+          phone,
+          role,
+        });
+
+        if (response.data && response.data.success) {
           setIsLogin(true);
           setError('Signup successful! Please login.');
         } else {
-          setError('Signup failed');
+          setError(response.data?.message || 'Signup failed');
         }
       } catch (err) {
-        setError('Signup failed');
+        console.error('Signup error', err);
+        setError(err.response?.data?.message || 'Signup failed');
       }
     }
   };
@@ -64,17 +95,42 @@ const AuthPage = () => {
       <form onSubmit={handleSubmit}>
         {!isLogin && (
           <>
-            <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-            <input type="text" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <input
+              type="text"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
               <option value="Registered Customer">Registered Customer</option>
               <option value="Admin">Admin</option>
               <option value="Delivery Driver">Delivery Driver</option>
             </select>
           </>
         )}
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
         <button type="submit">{isLogin ? 'Login' : 'Signup'}</button>
       </form>
       <button onClick={() => setIsLogin(!isLogin)}>

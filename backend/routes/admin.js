@@ -1,0 +1,408 @@
+// backend/routes/admin.js
+const express = require("express");
+const router = express.Router();
+const { Pool } = require("pg");
+require("dotenv").config();
+
+const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+});
+
+/* ===== Products ===== */
+router.get("/products", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.product_id, p.product_name, v.variant_id, v.variant_name as variant, c.category_name AS category, 
+             v.stock_quantity, v.price
+      FROM "Product" p
+      JOIN "Category" c ON p.category_id = c.category_id
+      LEFT JOIN "Variant" v ON p.product_id = v.product_id
+      ORDER BY p.product_id, v.variant_id ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Products fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+/* ===== Orders with Delivery Info ===== */
+router.get("/orders-with-delivery", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        o.order_id,
+        u.name AS customer_name,
+        o.order_status AS status,
+        SUM(oi.price_at_purchase * oi.quantity) AS total_amount,
+        o.order_date,
+        d.delivery_id,
+        d.delivery_status,
+        d.estimated_delivery_date AS delivery_date
+      FROM "Order" o
+      JOIN "User" u ON o.user_id = u.user_id
+      JOIN "OrderItem" oi ON o.order_id = oi.order_id
+      LEFT JOIN "Delivery" d ON o.order_id = d.order_id
+      GROUP BY o.order_id, u.name, o.order_status, o.order_date, d.delivery_id, d.delivery_status, d.estimated_delivery_date
+      ORDER BY o.order_id ASC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Orders with delivery fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+// Get all variants with product & category names
+router.get("/variants", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        v.variant_id,
+        v.variant_name,
+        v.stock_quantity,
+        p.product_name,
+        c.category_name
+      FROM "Variant" v
+      JOIN "Product" p ON v.product_id = p.product_id
+      JOIN "Category" c ON p.category_id = c.category_id
+      ORDER BY c.category_name, p.product_name, v.variant_name;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching variants:", err);
+    res.status(500).send("Server error while fetching variants");
+  }
+});
+
+
+/* ===== Transactions ===== */
+router.get("/transactions", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT t.transaction_id, t.variant_id, t.party_id, t.party_type,
+             t.transaction_type , t.quantity, t.transaction_date
+      FROM "Transaction" t
+      ORDER BY t.transaction_id ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Transactions fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+/**
+ * @route   PUT /api/admin/transactions/:id
+ * @desc    Update a transaction (stock auto-updated by trigger)
+ * @body    { variant_id, party_id, party_type, transaction_type, quantity, transaction_date }
+ */
+router.put("/transactions/:id", async (req, res) => {
+  const transactionId = req.params.id;
+  const { variant_id, party_id, party_type, transaction_type, quantity, transaction_date } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const updateQuery = `
+      UPDATE "Transaction"
+      SET variant_id = $1,
+          party_id = $2,
+          party_type = $3,
+          transaction_type = $4,
+          quantity = $5,
+          transaction_date = $6
+      WHERE transaction_id = $7
+      RETURNING *;
+    `;
+    const updated = await client.query(updateQuery, [
+      variant_id,
+      party_id,
+      party_type || "Supplier",
+      transaction_type,
+      quantity,
+      transaction_date || new Date(),
+      transactionId,
+    ]);
+
+    if (updated.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).send("Transaction not found");
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Transaction updated successfully", transaction: updated.rows[0] });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Update transaction error:", err.stack);
+    res.status(500).send("Server error while updating transaction");
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * @route   POST /api/admin/transactions
+ * @desc    Add a transaction (stock auto-updated by trigger)
+ * @body    { variant_id, party_id, party_type, transaction_type, quantity, transaction_date }
+ */
+router.post("/transactions", async (req, res) => {
+  const { variant_id, party_id, party_type, transaction_type, quantity, transaction_date } = req.body;
+
+  if (!variant_id || !party_id || !transaction_type || !quantity) {
+    return res.status(400).send("All fields are required");
+  }
+
+  const client = await pool.connect();
+  try {
+    console.log(">>> Add transaction triggered:", req.body);
+    await client.query("BEGIN");
+
+    const insertQuery = `
+      INSERT INTO "Transaction" (variant_id, party_id, party_type, transaction_type, quantity, transaction_date)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *;
+    `;
+    const result = await client.query(insertQuery, [
+      variant_id,
+      party_id,
+      party_type || "Supplier",
+      transaction_type,
+      quantity,
+      transaction_date || new Date(),
+    ]);
+
+    await client.query("COMMIT");
+    res.json({ message: "Transaction added successfully", transaction: result.rows[0] });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Add transaction error:", err.stack);
+    res.status(500).send("Server error while adding transaction");
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * @route   DELETE /api/admin/transactions/:id
+ * @desc    Delete a transaction (stock auto-adjusted by trigger)
+ */
+router.delete("/transactions/:id", async (req, res) => {
+  const transactionId = req.params.id;
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const txRes = await client.query(
+      `DELETE FROM "Transaction" WHERE transaction_id = $1 RETURNING *`,
+      [transactionId]
+    );
+
+    if (txRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).send("Transaction not found");
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Transaction deleted successfully", transaction: txRes.rows[0] });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Delete transaction error:", err.stack);
+    res.status(500).send("Server error while deleting transaction");
+  } finally {
+    client.release();
+  }
+});
+
+
+
+/* ===== Reports ===== */
+router.get("/reports", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT report_id, report_name AS title, generated_date AS generated_on
+      FROM "Report"
+      ORDER BY report_id ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Reports fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+/* ===== Customers ===== */
+router.get("/customers", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT user_id AS customer_id, name, email, phone
+      FROM "User"
+      WHERE role = 'Registered Customer'
+      ORDER BY user_id ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Customers fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+/* ===== Suppliers ===== */
+router.get("/suppliers", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT supplier_id, supplier_name AS name, phone AS contact, email, address
+      FROM "Supplier"
+      ORDER BY supplier_id ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Suppliers fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+/* ===== Delivery Drivers ===== */
+router.get("/deliverydrivers", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT user_id AS delivery_id, name, email, phone, NULL AS joined_on
+      FROM "User"
+      WHERE role = 'Delivery Driver'
+      ORDER BY user_id ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Customers fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+/* ============================================================
+   ADMIN DASHBOARD STATS ROUTES
+   ============================================================ */
+
+/**
+ * @route   GET /api/admin/stats/netincome
+ * @desc    Get net income = gross sales (from PAID orders) - purchases (from Transaction table)
+ */
+router.get("/stats/netincome", async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        COALESCE(gross.total_income, 0) AS gross_sales,
+        COALESCE(purchases.total_purchases, 0) AS purchases_cost,
+        (COALESCE(gross.total_income, 0) - COALESCE(purchases.total_purchases, 0)) AS net_income
+      FROM
+        (
+          SELECT SUM(oi.price_at_purchase * oi.quantity) AS total_income
+          FROM "OrderItem" oi
+          JOIN "Order" o ON oi.order_id = o.order_id
+          JOIN "Payment" p ON o.order_id = p.order_id
+          WHERE p.payment_status = 'Paid'
+        ) AS gross,
+        (
+          SELECT SUM(ABS(t.quantity) * COALESCE(v.price, 0)) AS total_purchases
+          FROM "Transaction" t
+          JOIN "Variant" v ON t.variant_id = v.variant_id
+          WHERE
+            LOWER(COALESCE(t.transaction_type, '')) LIKE '%purchase%'
+            OR LOWER(COALESCE(t.transaction_type, '')) LIKE '%restock%'
+            OR LOWER(COALESCE(t.party_type, '')) = 'supplier'
+        ) AS purchases;
+    `;
+    const result = await pool.query(query);
+    const row = result.rows[0] || { gross_sales: 0, purchases_cost: 0, net_income: 0 };
+    res.json({
+      gross_sales: parseFloat(row.gross_sales) || 0,
+      purchases_cost: parseFloat(row.purchases_cost) || 0,
+      net_income: parseFloat(row.net_income) || 0,
+    });
+  } catch (err) {
+    console.error("Net income fetch error:", err.stack);
+    res.status(500).send("Server error while fetching net income");
+  }
+});
+
+
+/**
+ * @route   GET /api/admin/stats/top-products
+ * @desc    Get top 5 selling products by total sales quantity
+ */
+router.get("/stats/top-products", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.product_name,
+        SUM(oi.quantity) AS total_sold,
+        SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
+      FROM "OrderItem" oi
+      JOIN "Variant" v ON oi.variant_id = v.variant_id
+      JOIN "Product" p ON v.product_id = p.product_id
+      GROUP BY p.product_id, p.product_name
+      ORDER BY total_sold DESC
+      LIMIT 5;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Top products fetch error:", err.stack);
+    res.status(500).send("Server error while fetching top products");
+  }
+});
+
+/**
+ * @route   GET /api/admin/stats/sales-performance
+ * @desc    Get sales performance over time (daily sales in the past 30 days)
+ */
+router.get("/stats/sales-performance", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        DATE(o.order_date) AS date,
+        COALESCE(SUM(oi.price_at_purchase * oi.quantity), 0) AS total_sales
+      FROM "Order" o
+      JOIN "OrderItem" oi ON o.order_id = oi.order_id
+      JOIN "Payment" p ON o.order_id = p.order_id
+      WHERE p.payment_status = 'Paid'
+      GROUP BY DATE(o.order_date)
+      ORDER BY DATE(o.order_date) ASC;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Sales performance fetch error:", err.stack);
+    res.status(500).send("Server error while fetching sales performance");
+  }
+});
+
+/**
+ * @route   GET /api/admin/stats/payment-methods
+ * @desc    Get distribution of payment methods (Card vs COD)
+ */
+router.get("/stats/payment-methods", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.payment_method,
+        COUNT(*) AS count
+      FROM "Payment" p
+      GROUP BY p.payment_method;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Payment methods fetch error:", err.stack);
+    res.status(500).send("Server error while fetching payment method stats");
+  }
+});
+
+module.exports = router;
