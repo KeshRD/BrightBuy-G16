@@ -69,7 +69,7 @@ button:hover {
 /* Add these new styles for the home page images */
 .product-card-image {
   width: 100%;
-  height: 150px;
+  height: 100%;
   object-fit: cover; /* Prevents image distortion */
   border-radius: 4px;
   margin-bottom: 15px;

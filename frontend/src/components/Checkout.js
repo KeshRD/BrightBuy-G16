@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import './checkout.css';
 
+
 const Checkout = () => {
     const [cartItems, setCartItems] = useState([]);
     const [selectedItems, setSelectedItems] = useState(new Set());
@@ -99,7 +100,11 @@ const Checkout = () => {
                                     checked={selectedItems.has(item.cart_item_id)}
                                     onChange={() => handleSelectItem(item.cart_item_id)}
                                 />
-                                <img src={item.image} alt={item.product_name} className="checkout-item-image" />
+                                <img
+              src={`http://localhost:5000${item.image}`}
+              alt={item.product_name}
+              className="product-card-image"
+            />
                                 <div className="item-details">
                                     <h4>{item.product_name} - {item.variant_name}</h4>
                                     <p>Qty: {item.quantity}</p>

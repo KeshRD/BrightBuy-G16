@@ -98,7 +98,11 @@ const CartPage = () => {
           <ul className="cart-list">
             {cartItems.map((item) => (
               <li key={item.cart_item_id}>
-                <img src={item.image} alt={item.product_name} className="cart-item-image" />
+                <img
+              src={`http://localhost:5000${item.image}`}
+              alt={item.product_name}
+              className="product-card-image"
+            />
                 <div className="cart-item-details">
                   <h3>{item.product_name} - {item.variant_name}</h3>
                   <p>Price: ${parseFloat(item.price).toFixed(2)}</p>

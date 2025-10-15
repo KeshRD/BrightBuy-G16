@@ -58,7 +58,11 @@ const ProductDetail = () => {
       <Navbar /> 
       <div className="App-header product-detail" style={{ paddingTop: '80px' }}>
         <h2>{product.product_name}</h2>
-        <img src={product.image} alt={product.product_name} className="product-detail-image" />
+        <img
+              src={`http://localhost:5000${product.image}`}
+              alt={product.product_name}
+              className="product-card-image"
+            />
         <p>{product.description}</p>
         <h3>Category: {product.category_name}</h3>
         <p>SKU: {product.SKU}</p>
