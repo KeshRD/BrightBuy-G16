@@ -1,0 +1,877 @@
+// src/components/AdminPage.js
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { Line, Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip,
+  Legend
+);
+
+const AdminPage = () => {
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    delete axios.defaults.headers.common["Authorization"];
+    navigate("/");
+  };
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* Sidebar */}
+      <nav
+        style={{
+          width: "220px",
+          background: "#1F2937",
+          color: "#fff",
+          padding: "20px 10px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          height: "100vh",
+        }}
+      >
+        {/* Top part: logo and tabs */}
+        <div>
+          <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Admin Panel</h2>
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {[
+              { key: "dashboard", label: "Dashboard" },
+              { key: "products", label: "Products" },
+              { key: "orders", label: "Orders" },
+              { key: "transactions", label: "Transactions" },
+              { key: "reports", label: "Reports" },
+              { key: "customers", label: "Customers" },
+              { key: "suppliers", label: "Suppliers" },
+              { key: "deliverydrivers", label: "Delivery Drivers" },
+            ].map((tab) => (
+              <li
+                key={tab.key}
+                style={linkStyle(activeTab === tab.key)}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {tab.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Bottom part: Logout */}
+        <div>
+          <li
+            style={{ ...linkStyle(false), background: "#B91C1C", marginTop: "20px" }}
+            onClick={handleLogout}
+          >
+            Logout
+          </li>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, padding: "20px", background: "#111827", color: "#fff" }}>
+        {activeTab === "dashboard" && <Dashboard />}
+        {activeTab === "products" && <Products />}
+        {activeTab === "orders" && <Orders />}
+        {activeTab === "transactions" && <Transactions />}
+        {activeTab === "reports" && <Reports />}
+        {activeTab === "customers" && <Customers />}
+        {activeTab === "suppliers" && <Suppliers />}
+        {activeTab === "deliverydrivers" && <DeliveryDrivers />}
+      </div>
+    </div>
+  );
+};
+
+/* ===== Sidebar Link Styles ===== */
+const linkStyle = (active) => ({
+  color: "#fff",
+  textDecoration: "none",
+  display: "block",
+  padding: "10px 0",
+  cursor: "pointer",
+  fontWeight: active ? "bold" : "normal",
+  background: active ? "#374151" : "transparent",
+  borderRadius: "4px",
+});
+
+/* ===== Dashboard Component (Integrated) ===== */
+const Dashboard = () => {
+  const [netIncome, setNetIncome] = useState(0);
+  const [topProducts, setTopProducts] = useState([]);
+  const [salesData, setSalesData] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState({});
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const netRes = await axios.get("http://localhost:5000/api/admin/stats/netincome");
+      const topRes = await axios.get("http://localhost:5000/api/admin/stats/top-products");
+      const salesRes = await axios.get("http://localhost:5000/api/admin/stats/sales-performance");
+      const paymentRes = await axios.get("http://localhost:5000/api/admin/stats/payment-methods");
+
+      setNetIncome(netRes.data.net_income || 0);
+      setTopProducts(topRes.data || []);
+      setSalesData(salesRes.data || []);
+
+      const paymentObj = {};
+      paymentRes.data.forEach((method) => {
+        paymentObj[method.payment_method] = parseInt(method.count);
+      });
+      setPaymentMethods(paymentObj);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const lineChartData = {
+    labels: salesData.map((item) => item.date),
+    datasets: [
+      {
+        label: "Total Sales ($)",
+        data: salesData.map((item) => item.total_sales),
+        borderColor: "#34D399",
+        backgroundColor: "rgba(52, 211, 153, 0.2)",
+        tension: 0.3,
+        fill: true,
+      },
+    ],
+  };
+
+  const doughnutData = {
+    labels: Object.keys(paymentMethods),
+    datasets: [
+      {
+        label: "Payment Methods",
+        data: Object.values(paymentMethods),
+        backgroundColor: ["#10B981", "#3B82F6", "#FACC15"],
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  return (
+    <div style={{ color: "#fff" }}>
+      {/* ===== TOP ROW: Net Income + Payment Methods ===== */}
+      <div style={dashboardStyles.topRow}>
+        <div style={dashboardStyles.netIncomeBox}>
+          <h3>Net Income</h3>
+          <p style={{ fontSize: "2rem", fontWeight: "bold", marginTop: "20px" }}>
+            ${Number(netIncome || 0).toLocaleString()}
+          </p>
+        </div>
+
+        <div style={dashboardStyles.paymentBox}>
+          <h3>Payment Methods</h3>
+          <div style={dashboardStyles.doughnutWrapper}>
+            {Object.keys(paymentMethods).length > 0 ? (
+              <Doughnut
+                data={doughnutData}
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: { legend: { position: "bottom" } },
+                }}
+              />
+            ) : (
+              <p>No payment data available.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== SALES PERFORMANCE ===== */}
+      <div style={dashboardStyles.chartContainer}>
+        <h3>Sales Performance</h3>
+        {salesData.length > 0 ? <Line data={lineChartData} /> : <p>No sales data available.</p>}
+      </div>
+
+      {/* ===== TOP PRODUCTS ===== */}
+      <div style={dashboardStyles.tableContainer}>
+        <h3>Top Selling Products</h3>
+        <table style={dashboardStyles.table}>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Qty Sold</th>
+              <th>Revenue</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topProducts.length > 0 ? (
+              topProducts.map((product, i) => (
+                <tr key={i}>
+                  <td>{product.product_name}</td>
+                  <td>{product.total_sold}</td>
+                  <td>${parseFloat(product.total_revenue).toFixed(2)}</td>
+                  <td style={{ color: "lightgreen" }}>In Stock</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4">No product data available.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const dashboardStyles = {
+  topRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "stretch",
+    gap: "20px",
+    marginBottom: "20px",
+  },
+  netIncomeBox: {
+    flex: "1",
+    background: "#1F2937",
+    padding: "20px",
+    borderRadius: "8px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: "250px",
+  },
+  paymentBox: {
+    flex: "1",
+    background: "#111827",
+    padding: "20px",
+    borderRadius: "8px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: "250px",
+  },
+  doughnutWrapper: {
+    width: "180px",
+    height: "180px",
+    marginTop: "15px",
+  },
+  chartContainer: {
+    background: "#111827",
+    padding: "20px",
+    borderRadius: "8px",
+    marginBottom: "20px",
+  },
+  tableContainer: {
+    background: "#111827",
+    padding: "20px",
+    borderRadius: "8px",
+    color: "#fff",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+};
+
+/* ===== Other Admin Components ===== */
+const Products = () => {
+  const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    // Filter whenever searchTerm changes
+    setFilteredProducts(
+      products.filter(
+        (p) =>
+          p.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.variant.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.category.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [searchTerm, products]);
+
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/products");
+      setProducts(res.data);
+      setFilteredProducts(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Products</h2>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", gap: "5px" }}>
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            borderRadius: "4px 0 0 4px",
+            border: "1px solid #ccc",
+            width: "200px",
+          }}
+        />
+        <button
+          onClick={() => {}}
+          style={{
+            padding: "6px 12px",
+            border: "1px solid #ccc",
+            borderLeft: "none",
+            borderRadius: "0 4px 4px 0",
+            background: "#10B981",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Search
+        </button>
+      </div>
+      <Table
+        data={filteredProducts}
+        columns={["variant_id", "product_name", "variant","category", "stock_quantity", "price"]}
+      />
+    </div>
+  );
+};
+
+
+const Orders = () => {
+  const [orders, setOrders] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredOrders, setFilteredOrders] = useState([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    setFilteredOrders(
+      orders.filter(
+        (o) =>
+          o.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          o.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          o.order_id.toString().includes(searchTerm)
+      )
+    );
+  }, [searchTerm, orders]);
+
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/orders-with-delivery");
+      setOrders(res.data);
+      setFilteredOrders(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Orders</h2>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", gap: "5px" }}>
+        <input
+          type="text"
+          placeholder="Search orders..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            borderRadius: "4px 0 0 4px",
+            border: "1px solid #ccc",
+            width: "200px",
+          }}
+        />
+        <button
+          onClick={() => {}}
+          style={{
+            padding: "6px 12px",
+            border: "1px solid #ccc",
+            borderLeft: "none",
+            borderRadius: "0 4px 4px 0",
+            background: "#3B82F6",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Search
+        </button>
+      </div>
+      <Table
+        data={filteredOrders}
+        columns={[
+          "order_id",
+          "customer_name",
+          "status",
+          "total_amount",
+          "order_date",
+          "delivery_id",
+          "delivery_status",
+          "delivery_date"
+        ]}
+      />
+    </div>
+  );
+};
+
+
+
+
+const Transactions = () => {
+  const [transactions, setTransactions] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [variants, setVariants] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [formData, setFormData] = useState({
+    party_id: "",
+    variant_id: "",
+    quantity: "",
+    transaction_date: new Date().toISOString().split("T")[0],
+  });
+
+  useEffect(() => {
+    fetchData();
+    fetchSuppliers();
+    fetchVariants();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/transactions");
+      setTransactions(res.data);
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/suppliers");
+      setSuppliers(res.data || []);
+    } catch (err) {
+      console.error("Error fetching suppliers:", err);
+    }
+  };
+
+  const fetchVariants = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/variants");
+      setVariants(res.data || []);
+    } catch (err) {
+      console.error("Error fetching variants:", err);
+    }
+  };
+
+  const openModal = (transaction = null) => {
+    if (transaction) {
+      setSelectedTransaction(transaction);
+      setFormData({
+        party_id: transaction.party_id,
+        variant_id: transaction.variant_id,
+        quantity: transaction.quantity,
+        transaction_date: transaction.transaction_date.split("T")[0],
+      });
+    } else {
+      setSelectedTransaction(null);
+      setFormData({
+        party_id: "",
+        variant_id: "",
+        quantity: "",
+        transaction_date: new Date().toISOString().split("T")[0],
+      });
+    }
+    setShowModal(true);
+  };
+
+  const handleDelete = async (transaction_id) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+
+    try {
+      const res = await axios.delete(`http://localhost:5000/api/admin/transactions/${transaction_id}`);
+      alert(res.data.message || "Transaction deleted successfully!");
+      fetchData();
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      alert("Failed to delete transaction.");
+    }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    const { variant_id, party_id, quantity, transaction_date } = formData;
+
+    if (!variant_id || !party_id || !quantity) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    const payload = {
+      variant_id: Number(variant_id),
+      party_id: Number(party_id),
+      transaction_type: "Purchase", // fixed
+      quantity: Number(quantity),
+      transaction_date,
+      party_type: "Supplier", // fixed
+    };
+
+    console.log(">>> Payload:", payload);
+
+    try {
+      if (selectedTransaction) {
+        await axios.put(
+          `http://localhost:5000/api/admin/transactions/${selectedTransaction.transaction_id}`,
+          payload
+        );
+        alert("Transaction updated successfully!");
+      } else {
+        await axios.post("http://localhost:5000/api/admin/transactions", payload);
+        alert("Transaction added successfully!");
+      }
+      fetchData();
+      closeModal();
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      alert("Failed to save transaction.");
+    }
+  };
+
+  return (
+    <div>
+      <h2>Transactions</h2>
+      <button onClick={() => openModal()} style={styles.addButton}>
+        Add New Transaction
+      </button>
+
+      <Table
+        data={transactions}
+        columns={[
+          "transaction_id",
+          "party_id",
+          "party_type",
+          "variant_id",
+          "transaction_type",
+          "quantity",
+          "transaction_date",
+          "actions",
+        ]}
+        renderExtraColumn={(row) => (
+          <div style={{ display: "flex", gap: "5px" }}>
+        
+            <button onClick={() => handleDelete(row.transaction_id)} style={styles.deleteButton}>
+              Delete
+            </button>
+          </div>
+        )}
+      />
+
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h3>{selectedTransaction ? "Update Transaction" : "Add New Transaction"}</h3>
+
+            <label>
+              Supplier:
+              <select
+                name="party_id"
+                value={formData.party_id}
+                onChange={handleInputChange}
+                style={styles.input}
+              >
+                <option value="">Select Supplier</option>
+                {suppliers.map((s) => (
+                  <option key={s.supplier_id} value={s.supplier_id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Variant (Product - Category):
+              <select
+                name="variant_id"
+                value={formData.variant_id}
+                onChange={handleInputChange}
+                style={styles.input}
+              >
+                <option value="">Select Variant</option>
+                {variants.map((v) => (
+                  <option key={v.variant_id} value={v.variant_id}>
+                    {`${v.variant_name} - ${v.product_name} (${v.category_name})`}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+
+            <label>
+              Quantity:
+              <input
+                type="number"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleInputChange}
+                style={styles.input}
+              />
+            </label>
+
+            <label>
+              Transaction Date:
+              <input
+                type="date"
+                name="transaction_date"
+                value={formData.transaction_date}
+                onChange={handleInputChange}
+                style={styles.input}
+              />
+            </label>
+
+            <div style={styles.modalButtons}>
+              <button onClick={handleSave} style={styles.saveButton}>
+                {selectedTransaction ? "Update" : "Add"}
+              </button>
+              <button onClick={closeModal} style={styles.cancelButton}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+const Reports = () => {
+  const [reports, setReports] = useState([]);
+  useEffect(() => {
+    fetchData();
+  }, []);
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/reports");
+      setReports(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  return (
+    <div>
+      <h2>Reports</h2>
+      <Table data={reports} columns={["report_id", "title", "generated_on"]} />
+    </div>
+  );
+};
+
+const Customers = () => {
+  const [customers, setCustomers] = useState([]);
+  useEffect(() => {
+    fetchData();
+  }, []);
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/customers");
+      setCustomers(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  return (
+    <div>
+      <h2>Customers</h2>
+      <Table data={customers} columns={["customer_id", "name", "email", "phone"]} />
+    </div>
+  );
+};
+
+const Suppliers = () => {
+  const [suppliers, setSuppliers] = useState([]);
+  useEffect(() => {
+    fetchData();
+  }, []);
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/suppliers");
+      setSuppliers(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  return (
+    <div>
+      <h2>Suppliers</h2>
+      <Table
+        data={suppliers}
+        columns={["supplier_id", "name", "contact", "email", "address"]}
+      />
+    </div>
+  );
+};
+
+const DeliveryDrivers = () => {
+  const [DeliveryDrivers, setDeliveryDrivers] = useState([]);
+  useEffect(() => {
+    fetchData();
+  }, []);
+  const fetchData = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/deliverydrivers");
+      setDeliveryDrivers(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  return (
+    <div>
+      <h2>Delivery Drivers</h2>
+      <Table data={DeliveryDrivers} columns={["delivery_id", "name", "email", "phone", "joined_on"]} />
+    </div>
+  );
+};
+
+const Table = ({ data, columns, renderExtraColumn }) => (
+  <table style={styles.table}>
+    <thead>
+      <tr>
+        {columns.map((col) => (
+          <th key={col}>{col.replace("_", " ").toUpperCase()}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {data.map((row) => (
+        <tr key={row.transaction_id || row[columns[0]]}>
+          {columns.map((col) =>
+            col === "actions" ? (
+              <td key={col}>{renderExtraColumn ? renderExtraColumn(row) : null}</td>
+            ) : (
+              <td key={col}>{row[col]}</td>
+            )
+          )}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
+// ===== Styles =====
+const styles = {
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    border: "1px solid #ccc",
+    marginTop: "15px",
+  },
+
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(0,0,0,0.5)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  modal: {
+    background: "#1F2937",
+    padding: "20px",
+    borderRadius: "8px",
+    minWidth: "300px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "15px",
+    color: "#fff",
+  },
+  input: {
+    width: "100%",
+    padding: "8px",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
+    marginTop: "5px",
+    background: "#111827",
+    color: "#fff",
+  },
+  modalButtons: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+  },
+  saveButton: {
+    padding: "6px 12px",
+    background: "#10B981",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  cancelButton: {
+    padding: "6px 12px",
+    background: "#B91C1C",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+
+  addButton: {
+    padding: "6px 12px",
+    background: "#10B981",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    marginBottom: "10px",
+    cursor: "pointer",
+  },
+
+  deleteButton: {
+    padding: "5px 10px",
+    background: "#f44336",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+  },
+};
+export default AdminPage;

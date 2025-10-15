@@ -1,0 +1,42 @@
+/* src/components/productdetail.css */
+
+.product-detail {
+  max-width: 800px;
+  text-align: left;
+  /* Add these lines to enable flexbox and center children */
+  display: flex;
+  flex-direction: column;
+}
+
+.product-detail-image {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  align-self: center; /* This will now work correctly */
+}
+
+.product-detail ul {
+  list-style-type: none;
+  padding: 0;
+  width: 100%;
+}
+
+.product-detail li {
+  background-color: #35383f;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 5px;
+}
+
+.product-detail li button {
+  margin-top: 10px;
+  background-color: #4caf50;
+  margin-right: 10px;
+}
+
+.product-detail li button:hover {
+  background-color: #388e3c;
+}
+

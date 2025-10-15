@@ -5,16 +5,29 @@ import AuthPage from './components/AuthPage';
 import HomePage from './components/HomePage';
 import ProductDetail from './components/ProductDetail';
 import CartPage from './components/CartPage';
+import Checkout from './components/Checkout';
+import OrderConfirmation from './components/OrderConfirmation';
+import PaymentPage from './components/PaymentPage'; 
+import OrdersPage from './components/OrdersPage';
+import AdminPage from './components/AdminPage';
 import './App.css';
+import './components/navbar.css'; // Import Navbar styles globally
+
 
 function App() {
   return (
     <div className="App">
       <Routes>
         <Route path="/" element={<AuthPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/product/:productId" element={<ProductDetail />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/orderConfirm" element={<OrderConfirmation />} />
+        <Route path="/orders" element={<OrdersPage />} />
+
       </Routes>
     </div>
   );
