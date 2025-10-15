@@ -21,7 +21,7 @@ router.get("/products", async (req, res) => {
       FROM "Product" p
       JOIN "Category" c ON p.category_id = c.category_id
       LEFT JOIN "Variant" v ON p.product_id = v.product_id
-      ORDER BY p.product_id, variant_id ASC
+      ORDER BY p.product_id, v.variant_id ASC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -103,7 +103,7 @@ router.get("/transactions", async (req, res) => {
  * @desc    Update a transaction (stock auto-updated by trigger)
  * @body    { variant_id, party_id, party_type, transaction_type, quantity, transaction_date }
  */
-/*router.put("/transactions/:id", async (req, res) => {
+router.put("/transactions/:id", async (req, res) => {
   const transactionId = req.params.id;
   const { variant_id, party_id, party_type, transaction_type, quantity, transaction_date } = req.body;
 
@@ -146,7 +146,7 @@ router.get("/transactions", async (req, res) => {
   } finally {
     client.release();
   }
-});*/
+});
 
 /**
  * @route   POST /api/admin/transactions
@@ -224,7 +224,6 @@ router.delete("/transactions/:id", async (req, res) => {
 
 
 
-
 /* ===== Reports ===== */
 router.get("/reports", async (req, res) => {
   try {
@@ -293,41 +292,39 @@ router.get("/deliverydrivers", async (req, res) => {
 
 /**
  * @route   GET /api/admin/stats/netincome
- * @desc    Get total net income from all PAID orders
- *          (Sum of price_at_purchase * quantity)
+ * @desc    Get net income = gross sales (from PAID orders) - purchases (from Transaction table)
  */
 router.get("/stats/netincome", async (req, res) => {
   try {
     const query = `
       SELECT
-        COALESCE(SUM(
-          CASE 
-            WHEN LOWER(t.transaction_type) = 'sale' 
-              THEN COALESCE(v.price, 0) * COALESCE(t.quantity, 0)
-            ELSE 0 
-          END
-        ), 0) AS gross_income,
-        
-        COALESCE(SUM(
-          CASE 
-            WHEN LOWER(t.transaction_type) = 'purchase' 
-              THEN COALESCE(v.price_at_purchase, 0) * COALESCE(t.quantity, 0)
-            ELSE 0 
-          END
-        ), 0) AS total_purchases
-      FROM "Transaction" t
-      JOIN "Variant" v ON t.variant_id = v.variant_id;
+        COALESCE(gross.total_income, 0) AS gross_sales,
+        COALESCE(purchases.total_purchases, 0) AS purchases_cost,
+        (COALESCE(gross.total_income, 0) - COALESCE(purchases.total_purchases, 0)) AS net_income
+      FROM
+        (
+          SELECT SUM(oi.price_at_purchase * oi.quantity) AS total_income
+          FROM "OrderItem" oi
+          JOIN "Order" o ON oi.order_id = o.order_id
+          JOIN "Payment" p ON o.order_id = p.order_id
+          WHERE p.payment_status = 'Paid'
+        ) AS gross,
+        (
+          SELECT SUM(ABS(t.quantity) * COALESCE(v.price, 0)) AS total_purchases
+          FROM "Transaction" t
+          JOIN "Variant" v ON t.variant_id = v.variant_id
+          WHERE
+            LOWER(COALESCE(t.transaction_type, '')) LIKE '%purchase%'
+            OR LOWER(COALESCE(t.transaction_type, '')) LIKE '%restock%'
+            OR LOWER(COALESCE(t.party_type, '')) = 'supplier'
+        ) AS purchases;
     `;
-
     const result = await pool.query(query);
-    const grossIncome = Number(result.rows[0].gross_income) || 0;
-    const totalPurchases = Number(result.rows[0].total_purchases) || 0;
-    const netIncome = grossIncome - totalPurchases;
-
+    const row = result.rows[0] || { gross_sales: 0, purchases_cost: 0, net_income: 0 };
     res.json({
-      gross_income: grossIncome,
-      total_purchases: totalPurchases,
-      net_income: netIncome,
+      gross_sales: parseFloat(row.gross_sales) || 0,
+      purchases_cost: parseFloat(row.purchases_cost) || 0,
+      net_income: parseFloat(row.net_income) || 0,
     });
   } catch (err) {
     console.error("Net income fetch error:", err.stack);

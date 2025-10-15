@@ -7,37 +7,37 @@ const CartPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Function to fetch cart items, can be reused
-  const fetchCart = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/cart');
-      setCartItems(response.data);
-    } catch (err) {
-      console.error('Fetch cart error:', err);
-      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        delete axios.defaults.headers.common['Authorization'];
-        navigate('/');
-      } else {
-        setError('Failed to load cart');
-      }
-    }
-  };
-
   useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/cart');
+        setCartItems(response.data);
+      } catch (err) {
+        console.error('Fetch cart error:', err);
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          delete axios.defaults.headers.common['Authorization'];
+          navigate('/');
+        } else {
+          setError('Failed to load cart');
+        }
+      }
+    };
+
     if (!localStorage.getItem('token')) {
       navigate('/');
       return;
     }
+
     fetchCart();
   }, [navigate]);
 
   const handleQuantityChange = async (item, newQuantity) => {
-    if (newQuantity < 1) return; // Prevent quantity from being less than 1
+    if (newQuantity < 1) return;
     if (newQuantity > item.stock_quantity) {
-        alert(`Sorry, only ${item.stock_quantity} units are in stock.`);
-        return;
+      alert(`Sorry, only ${item.stock_quantity} units are in stock.`);
+      return;
     }
 
     try {
@@ -47,7 +47,6 @@ const CartPage = () => {
       });
 
       if (response.data.success) {
-        // Update the state locally for a quick UI response
         setCartItems(currentItems =>
           currentItems.map(cartItem =>
             cartItem.cart_item_id === item.cart_item_id
@@ -68,7 +67,6 @@ const CartPage = () => {
     try {
       const response = await axios.delete(`http://localhost:5000/cart/remove/${cartItemId}`);
       if (response.data.success) {
-        // Update state locally
         setCartItems(currentItems => currentItems.filter(item => item.cart_item_id !== cartItemId));
       } else {
         setError('Failed to remove item.');
@@ -111,8 +109,8 @@ const CartPage = () => {
                   </div>
                 </div>
                 <div className="cart-item-actions">
-                    <p>Subtotal: ${(item.quantity * parseFloat(item.price)).toFixed(2)}</p>
-                    <button className="remove-btn" onClick={() => handleRemoveItem(item.cart_item_id)}>Remove</button>
+                  <p>Subtotal: ${(item.quantity * parseFloat(item.price)).toFixed(2)}</p>
+                  <button className="remove-btn" onClick={() => handleRemoveItem(item.cart_item_id)}>Remove</button>
                 </div>
               </li>
             ))}
@@ -128,4 +126,3 @@ const CartPage = () => {
 };
 
 export default CartPage;
-
