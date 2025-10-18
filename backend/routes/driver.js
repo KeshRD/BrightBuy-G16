@@ -42,33 +42,34 @@ router.get('/profile', authenticateDriver, async (req, res) => {
 router.get('/deliveries', authenticateDriver, async (req, res) => {
   try {
     const query = `
-      SELECT
-        d.delivery_id,
-        d.order_id,
-        d.estimated_delivery_date AS arrival_date,
-        COALESCE(d.delivery_address, o.delivery_address) AS delivery_address,
-        u.name AS customer_name,
-        pay.payment_method,
-        COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) AS total_price,
-        JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'variant_id', v.variant_id,
-            'product_name', prod.product_name,
-            'variant_name', v.variant_name,
-            'quantity', oi.quantity,
-            'price', oi.price_at_purchase
-          ) ORDER BY oi.order_item_id
-        ) FILTER (WHERE oi.order_item_id IS NOT NULL) AS items
-      FROM delivery d
-      JOIN "order" o ON d.order_id = o.order_id
-      JOIN "user" u ON o.user_id = u.user_id
-      LEFT JOIN payment pay ON o.order_id = pay.order_id
-      LEFT JOIN orderitem oi ON o.order_id = oi.order_id
-      LEFT JOIN variant v ON oi.variant_id = v.variant_id
-      LEFT JOIN product prod ON v.product_id = prod.product_id
-      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, d.delivery_address, u.name, pay.payment_method, o.delivery_address
-      ORDER BY d.estimated_delivery_date DESC NULLS LAST, d.delivery_id DESC;
-    `;
+  SELECT
+    d.delivery_id,
+    d.order_id,
+    d.estimated_delivery_date AS arrival_date,
+    o.delivery_address AS delivery_address,
+    u.name AS customer_name,
+    pay.payment_method,
+    COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) AS total_price,
+    JSON_AGG(
+      JSON_BUILD_OBJECT(
+        'variant_id', v.variant_id,
+        'product_name', prod.product_name,
+        'variant_name', v.variant_name,
+        'quantity', oi.quantity,
+        'price', oi.price_at_purchase
+      ) ORDER BY oi.order_item_id
+    ) FILTER (WHERE oi.order_item_id IS NOT NULL) AS items
+  FROM "Delivery" d
+  JOIN "Order" o ON d.order_id = o.order_id
+  JOIN "User" u ON o.user_id = u.user_id
+  LEFT JOIN "Payment" pay ON o.order_id = pay.order_id
+  LEFT JOIN "OrderItem" oi ON o.order_id = oi.order_id
+  LEFT JOIN "Variant" v ON oi.variant_id = v.variant_id
+  LEFT JOIN "Product" prod ON v.product_id = prod.product_id
+  GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, u.name, pay.payment_method, o.delivery_address
+  ORDER BY d.estimated_delivery_date DESC NULLS LAST, d.delivery_id DESC;
+`;
+
 
     const { rows } = await pool.query(query);
 
@@ -82,7 +83,10 @@ router.get('/deliveries', authenticateDriver, async (req, res) => {
 
     res.json(processed);
   } catch (err) {
-    console.error('Error fetching deliveries:', err.stack || err);
+
+    console.error('Error fetching deliveries:', err.message);
+    console.error(err.stack);
+
     res.status(500).json({ error: 'Server error while fetching deliveries' });
   }
 });
