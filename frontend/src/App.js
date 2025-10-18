@@ -10,6 +10,7 @@ import OrderConfirmation from './components/OrderConfirmation';
 import PaymentPage from './components/PaymentPage'; 
 import OrdersPage from './components/OrdersPage';
 import AdminPage from './components/AdminPage';
+import DriverDashboard from './components/DriverDashboard';
 import './App.css';
 import './components/navbar.css'; // Import Navbar styles globally
 
@@ -27,6 +28,7 @@ function App() {
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/orderConfirm" element={<OrderConfirmation />} />
         <Route path="/orders" element={<OrdersPage />} />
+  <Route path="/driver" element={<DriverDashboard />} />
 
       </Routes>
     </div>

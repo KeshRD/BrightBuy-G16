@@ -48,6 +48,8 @@ const AuthPage = () => {
           // ✅ Redirect based on role
           if (user.role === 'Admin') {
             navigate('/admin');
+          } else if (user.role === 'Delivery Driver') {
+            navigate('/driver');
           } else {
             navigate('/home');
           }
