@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const adminRoutes = require('./routes/admin');
+const driverRoutes = require('./routes/driver');
 require('dotenv').config();
 
 
@@ -23,6 +24,7 @@ app.use('/admin', adminRoutes);
 
 // server.js
 app.use('/api/admin', adminRoutes);
+app.use('/api/driver', driverRoutes);
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -65,15 +67,17 @@ const authenticate = (req, res, next) => {
 // --- (Login, Signup, and Product routes remain the same) ---
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
+  const lowerEmail = email.toLowerCase();
   try {
-    const result = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM "User" WHERE email = $1', [lowerEmail]);
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const match = await bcrypt.compare(password, user.password);
       if (match) {
-        const token = jwt.sign({ userId: user.user_id }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ success: true, token, user: { user_id: user.user_id, name: user.name, role: user.role } });
-      } else {
+          // include role in the token so protected routes can authorize by role if needed
+          const token = jwt.sign({ userId: user.user_id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+          res.json({ success: true, token, user: { user_id: user.user_id, name: user.name, role: user.role } });
+        } else {
         res.json({ success: false, message: 'Invalid credentials' });
       }
     } else {
@@ -86,8 +90,9 @@ app.post('/login', async (req, res) => {
 
 app.post('/signup', async (req, res) => {
   const { name, email, password, phone, role } = req.body;
+  const lowerEmail = email.toLowerCase();
   try {
-    const check = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
+    const check = await pool.query('SELECT * FROM "User" WHERE email = $1', [lowerEmail]);
     if (check.rows.length > 0) {
       return res.json({ success: false, message: 'Email already exists' });
     }
@@ -95,7 +100,7 @@ app.post('/signup', async (req, res) => {
     // Assuming user_id is auto-incrementing (SERIAL or IDENTITY)
     await pool.query(
       'INSERT INTO "User" (name, email, password, phone, role) VALUES ($1, $2, $3, $4, $5)',
-      [name, email, hashedPassword, phone, role]
+      [name, lowerEmail, hashedPassword, phone, role]
     );
     res.json({ success: true });
   } catch (err) {

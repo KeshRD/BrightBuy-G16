@@ -56,10 +56,6 @@ const CartPage = () => {
     if (newQuantity > item.stock_quantity) {
       alert(`Sorry, only ${item.stock_quantity} units are in stock.`);
       return;
-    if (newQuantity < 1) return; // Prevent quantity from being less than 1
-    if (newQuantity > item.stock_quantity) {
-        alert(`Sorry, only ${item.stock_quantity} units are in stock.`);
-        return;
     }
 
     try {
@@ -122,12 +118,7 @@ const CartPage = () => {
           <ul className="cart-list">
             {cartItems.map((item) => (
               <li key={item.cart_item_id}>
-                <img
-              src={`http://localhost:5000${item.image}`}
-              alt={item.product_name}
-              className="product-card-image"
-            />
-                <img src={item.image} alt={item.product_name} className="cart-item-image" />
+                <img src={`http://localhost:5000${item.image}`} alt={item.product_name} className="cart-item-image" />
                 <div className="cart-item-details">
                   <h3>{item.product_name} - {item.variant_name}</h3>
                   <p>Price: ${parseFloat(item.price).toFixed(2)}</p>
@@ -140,8 +131,6 @@ const CartPage = () => {
                 <div className="cart-item-actions">
                   <p>Subtotal: ${(item.quantity * parseFloat(item.price)).toFixed(2)}</p>
                   <button className="remove-btn" onClick={() => handleRemoveItem(item.cart_item_id)}>Remove</button>
-                    <p>Subtotal: ${(item.quantity * parseFloat(item.price)).toFixed(2)}</p>
-                    <button className="remove-btn" onClick={() => handleRemoveItem(item.cart_item_id)}>Remove</button>
                 </div>
               </li>
             ))}
