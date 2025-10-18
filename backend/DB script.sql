@@ -18,7 +18,7 @@ CREATE TABLE "Product" (
   "product_name" VARCHAR(100) NOT NULL,
   "SKU" VARCHAR(50) UNIQUE NOT NULL,
   "description" TEXT,
-  "image" BYTEA
+  "image" VARCHAR(250)
 );
 
 CREATE TABLE "Variant" (

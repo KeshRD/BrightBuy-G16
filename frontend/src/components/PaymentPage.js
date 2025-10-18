@@ -34,6 +34,12 @@ const PaymentPage = () => {
 
     // Effect to calculate estimated delivery date
     useEffect(() => {
+
+        if (deliveryMethod === 'Store Pickup') {
+            setEstimatedDeliveryDate(null);
+            return;
+        }
+
         if (shippingDetails.city && items.length > 0) {
             const calculateDeliveryDate = () => {
                 let deliveryDays = 0;
@@ -52,8 +58,8 @@ const PaymentPage = () => {
                     deliveryDays += 3;
                 }
                 
-                // Express delivery reduces time by 2 days (or as per business logic)
-                if (deliveryMethod === 'Express') {
+
+                if (deliveryMethod === 'Store Pickup') {
                     deliveryDays = Math.max(1, deliveryDays - 2);
                 }
 
@@ -75,8 +81,8 @@ const PaymentPage = () => {
 
     const handlePaymentSubmit = async (e) => {
         e.preventDefault();
-        if (!shippingDetails.fullName || !shippingDetails.address || !shippingDetails.city || !shippingDetails.postalCode) {
-            setError('Please fill in all shipping details.');
+        if (deliveryMethod !== 'Store Pickup' && (!shippingDetails.fullName || !shippingDetails.address || !shippingDetails.city || !shippingDetails.postalCode)) {
+            setError('Please fill in all shipping details for delivery.');
             return;
         }
         if (paymentMethod === 'Card Payment' && (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc || !cardDetails.name)) {
@@ -94,7 +100,7 @@ const PaymentPage = () => {
             const orderResponse = await axios.post('http://localhost:5000/create-order', {
                 items,
                 total,
-                shippingAddress: shippingDetails,
+                shippingAddress: deliveryMethod !== 'Store Pickup' ? shippingDetails : { address: 'Store Pickup' },
                 deliveryMethod,
                 paymentMethod,
                 estimatedDeliveryDate,
@@ -134,7 +140,12 @@ const PaymentPage = () => {
                     <h3>Order Summary</h3>
                     {items.map(item => (
                         <div key={item.cart_item_id} className="summary-item">
-                            <img src={item.image} alt={item.product_name} className="summary-item-image" />
+                            
+                            <img
+                                src={`http://localhost:5000${item.image}`}
+                                alt={item.product_name}
+                                className="summary-item-image"
+                            />
                             <div className='summary-item-details'>
                                 <span>{item.product_name} (x{item.quantity})</span>
                                 <span>${(item.quantity * parseFloat(item.price)).toFixed(2)}</span>
@@ -146,37 +157,30 @@ const PaymentPage = () => {
                         <strong>Total</strong>
                         <strong>${parseFloat(total).toFixed(2)}</strong>
                     </div>
-                     {estimatedDeliveryDate && (
-                        // Display the date in a readable format on the page
+      
+                     {deliveryMethod !== 'Store Pickup' && estimatedDeliveryDate && (
                         <p className="delivery-estimate">Estimated Delivery: {new Date(estimatedDeliveryDate).toLocaleDateString()}</p>
                     )}
                 </div>
 
                 <div className="forms-column">
                     <form className="shipping-form" onSubmit={handlePaymentSubmit}>
-                        <h3>Shipping Address</h3>
-                        <input
-                            type="text" name="fullName" placeholder="Full Name"
-                            value={shippingDetails.fullName} onChange={(e) => handleInputChange(e, setShippingDetails)} required
-                        />
-                        <input
-                            type="text" name="address" placeholder="Address Line"
-                            value={shippingDetails.address} onChange={(e) => handleInputChange(e, setShippingDetails)} required
-                        />
-                        <input
-                            type="text" name="city" placeholder="City"
-                            value={shippingDetails.city} onChange={(e) => handleInputChange(e, setShippingDetails)} required
-                        />
-                        <input
-                            type="text" name="postalCode" placeholder="Postal Code"
-                            value={shippingDetails.postalCode} onChange={(e) => handleInputChange(e, setShippingDetails)} required
-                        />
-
+                        
                         <h3>Delivery Method</h3>
                         <div className="form-options">
                             <label><input type="radio" value="Standard" checked={deliveryMethod === 'Standard'} onChange={(e) => setDeliveryMethod(e.target.value)} /> Standard</label>
-                            <label><input type="radio" value="Express" checked={deliveryMethod === 'Express'} onChange={(e) => setDeliveryMethod(e.target.value)} /> Express</label>
+                            <label><input type="radio" value="Store Pickup" checked={deliveryMethod === 'Store Pickup'} onChange={(e) => setDeliveryMethod(e.target.value)} /> Store Pickup</label>
                         </div>
+
+                        {deliveryMethod !== 'Store Pickup' && (
+                            <>
+                                <h3>Shipping Address</h3>
+                                <input type="text" name="fullName" placeholder="Full Name" value={shippingDetails.fullName} onChange={(e) => handleInputChange(e, setShippingDetails)} required />
+                                <input type="text" name="address" placeholder="Address Line" value={shippingDetails.address} onChange={(e) => handleInputChange(e, setShippingDetails)} required />
+                                <input type="text" name="city" placeholder="City" value={shippingDetails.city} onChange={(e) => handleInputChange(e, setShippingDetails)} required />
+                                <input type="text" name="postalCode" placeholder="Postal Code" value={shippingDetails.postalCode} onChange={(e) => handleInputChange(e, setShippingDetails)} required />
+                            </>
+                        )}
                         
                         <h3>Payment Method</h3>
                         <div className="form-options">
