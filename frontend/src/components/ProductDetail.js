@@ -63,6 +63,7 @@ const ProductDetail = () => {
               alt={product.product_name}
               className="product-card-image"
             />
+        <img src={product.image} alt={product.product_name} className="product-detail-image" />
         <p>{product.description}</p>
         <h3>Category: {product.category_name}</h3>
         <p>SKU: {product.SKU}</p>

@@ -105,6 +105,7 @@ const Checkout = () => {
               alt={item.product_name}
               className="product-card-image"
             />
+                                <img src={item.image} alt={item.product_name} className="checkout-item-image" />
                                 <div className="item-details">
                                     <h4>{item.product_name} - {item.variant_name}</h4>
                                     <p>Qty: {item.quantity}</p>
