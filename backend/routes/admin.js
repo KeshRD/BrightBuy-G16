@@ -405,4 +405,59 @@ router.get("/stats/payment-methods", async (req, res) => {
   }
 });
 
+/* ===== Update User Role ===== */
+router.patch("/users/:id/role", async (req, res) => {
+  const { id } = req.params;
+  const { role, address } = req.body; // 👈 include address
+
+  const validRoles = ["Admin", "Registered Customer", "Supplier", "Delivery Driver"];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ error: "Invalid role value" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userRes = await client.query('SELECT * FROM "User" WHERE "user_id" = $1', [id]);
+    if (userRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userRes.rows[0];
+
+    if (role === "Supplier") {
+      // Validate that address is provided
+      if (!address || address.trim() === "") {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Supplier address is required" });
+      }
+
+      // Insert supplier with address
+      await client.query(
+        `INSERT INTO "Supplier" ("supplier_name", "phone", "email", "address")
+         VALUES ($1, $2, $3, $4)`,
+        [user.name, user.phone, user.email, address]
+      );
+
+      // Delete user from User table
+      await client.query('DELETE FROM "User" WHERE "user_id" = $1', [id]);
+    } else {
+      // Regular role update
+      await client.query('UPDATE "User" SET "role" = $1 WHERE "user_id" = $2', [role, id]);
+    }
+
+    await client.query("COMMIT");
+    res.status(200).json({ message: "Role updated successfully." });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating user role:", err);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    client.release();
+  }
+});
+
+
 module.exports = router;
