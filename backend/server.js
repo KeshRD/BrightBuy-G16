@@ -86,19 +86,25 @@ app.post('/login', async (req, res) => {
 
 app.post('/signup', async (req, res) => {
   const { name, email, password, phone, role } = req.body;
+  console.log("📥 Signup request:", req.body); // <== see if body arrives
+
   try {
     const check = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
     if (check.rows.length > 0) {
       return res.json({ success: false, message: 'Email already exists' });
     }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    // Assuming user_id is auto-incrementing (SERIAL or IDENTITY)
+
     await pool.query(
       'INSERT INTO "User" (name, email, password, phone, role) VALUES ($1, $2, $3, $4, $5)',
       [name, email, hashedPassword, phone, role]
     );
+
+    console.log("✅ User created successfully:", email);
     res.json({ success: true });
   } catch (err) {
+    console.error("❌ Signup error:", err); // <== log the real error
     res.status(500).json({ success: false, message: 'Server error during signup' });
   }
 });
