@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+const { nanoid } = require("nanoid");
 
 ChartJS.register(
   CategoryScale,
@@ -298,6 +299,9 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
+  
+  // --- ADD useNavigate ---
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -324,42 +328,68 @@ const Products = () => {
       console.error(err);
     }
   };
+  
+  // --- ALL MODAL/FORM LOGIC IS REMOVED ---
 
   return (
     <div>
       <h2>Products</h2>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", gap: "5px" }}>
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: "6px 10px",
-            borderRadius: "4px 0 0 4px",
-            border: "1px solid #ccc",
-            width: "200px",
-          }}
-        />
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", gap: "5px"}}>
+
+        {/* --- MODIFIED "ADD PRODUCT" BUTTON --- */}
         <button
-          onClick={() => {}}
+          onClick={() => navigate('/admin/products/new')} // <-- This now navigates
           style={{
             padding: "6px 12px",
             border: "1px solid #ccc",
             borderLeft: "none",
-            borderRadius: "0 4px 4px 0",
+            borderRadius: "4px",
             background: "#10B981",
             color: "#fff",
             cursor: "pointer",
           }}
         >
-          Search
+          Add Product
         </button>
+
+        {/* --- SEARCH BAR (UNCHANGED) --- */}
+        <div style={{ display: "flex", gap: "0px" }}>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.g.target.value)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "4px 0 0 4px",
+              border: "1px solid #ccc",
+              width: "200px",
+            }}
+          />
+          <button
+            onClick={() => {}} 
+            style={{
+              padding: "6px 12px",
+              border: "1px solid #ccc",
+              borderLeft: "none",
+              borderRadius: "0 4px 4px 0",
+              background: "#10B981",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Search
+          </button>
+        </div>
       </div>
+      
       <Table
         data={filteredProducts}
         columns={["variant_id", "product_name", "variant","category", "stock_quantity", "price"]}
       />
+
+ 
+      
     </div>
   );
 };

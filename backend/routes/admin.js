@@ -4,6 +4,9 @@ const router = express.Router();
 const { Pool } = require("pg");
 require("dotenv").config();
 
+const { nanoid } = require('nanoid');
+
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -29,6 +32,109 @@ router.get("/products", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+/**
+ * @route   GET /api/admin/categories
+ * @desc    Get all categories for dropdowns
+ */
+router.get("/categories", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT category_id, category_name AS name 
+      FROM "Category" 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Categories fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+// backend/routes/admin.js
+// ... (keep all your imports and other routes) ...
+
+/**
+ * @route   POST /api/admin/products
+ * @desc    Add a new product (with its first variant)
+ */
+router.post("/products", async (req, res) => {
+  // --- 1. GET 'price_at_purchase' from body ---
+  const { product_name, variant, category_id, stock_quantity, price, price_at_purchase, description, image } = req.body;
+
+  // --- 2. VALIDATE 'price_at_purchase' ---
+  if (!product_name || !variant || !category_id || !stock_quantity || !price || !price_at_purchase || !description || !image) {
+    return res.status(400).json({ message: "All fields, including an image, are required" });
+  }
+
+  // --- 3. Product Name Uniqueness Check (from trigger) ---
+  // We still need to check for the error code, but the check itself is done by the DB
+
+  // --- 4. SKU Generation (from trigger) ---
+  // This is now handled entirely by the database trigger
+
+  // --- 5. Database Transaction ---
+  const client = await pool.connect(); 
+  try {
+    await client.query("BEGIN"); 
+
+    const productQuery = `
+      INSERT INTO "Product" (product_name, category_id, description, image)
+      VALUES ($1, $2, $3, $4)
+      RETURNING product_id, "SKU"; 
+    `;
+    const productRes = await client.query(productQuery, [
+      product_name,
+      category_id,
+      description,
+      image 
+    ]);
+    const newProductId = productRes.rows[0].product_id;
+    const generatedSku = productRes.rows[0].SKU;
+
+    console.log(`Generated SKU ${generatedSku} for new product.`);
+
+    // --- 6. FIX: Use the new variable in the query ---
+    const variantQuery = `
+      INSERT INTO "Variant" (product_id, variant_name, stock_quantity, price, price_at_purchase)
+      VALUES ($1, $2, $3, $4, $5) 
+      RETURNING *;
+    `;
+    const variantRes = await client.query(variantQuery, [
+      newProductId,
+      variant, 
+      stock_quantity,
+      price,
+      price_at_purchase // <-- Use the new variable here ($5)
+    ]);
+
+    await client.query("COMMIT");
+    res.json({
+      message: "Product and variant added successfully",
+      product: productRes.rows[0],
+      variant: variantRes.rows[0],
+    });
+
+  } catch (err) {
+    // --- 7. Error Handling (Unchanged) ---
+    await client.query("ROLLBACK").catch(() => {});
+    
+    if (err.code === '23505') { 
+      // Check for the unique index name (it might be 'product_name_unique_idx')
+      if (err.constraint === 'product_name_unique' || err.constraint === 'product_name_unique_idx') {
+        return res.status(400).json({ message: "A product with this name already exists. Please use a different name." });
+      }
+    }
+    
+    console.error("Add product error:", err.stack);
+    res.status(500).send("Server error while adding product");
+  } finally {
+    client.release();
+  }
+});
+
+// ... (keep all your other routes) ...
+module.exports = router;
 
 /* ===== Orders with Delivery Info ===== */
 router.get("/orders-with-delivery", async (req, res) => {
