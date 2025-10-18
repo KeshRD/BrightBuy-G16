@@ -3,7 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
-require('dotenv').config();                 // 1) load env FIRST ✅
+const bcrypt = require('bcryptjs'); 
+const jwt = require('jsonwebtoken');
+require('dotenv').config();              
 
 const adminRoutes = require('./routes/admin');
 const driverRoutes = require('./routes/driver');
