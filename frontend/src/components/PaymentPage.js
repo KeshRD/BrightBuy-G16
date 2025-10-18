@@ -140,7 +140,12 @@ const PaymentPage = () => {
                     <h3>Order Summary</h3>
                     {items.map(item => (
                         <div key={item.cart_item_id} className="summary-item">
-                            <img src={item.image} alt={item.product_name} className="summary-item-image" />
+                            
+                            <img
+                                src={`http://localhost:5000${item.image}`}
+                                alt={item.product_name}
+                                className="summary-item-image"
+                            />
                             <div className='summary-item-details'>
                                 <span>{item.product_name} (x{item.quantity})</span>
                                 <span>${(item.quantity * parseFloat(item.price)).toFixed(2)}</span>
