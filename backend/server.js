@@ -34,6 +34,16 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
+// Test database connection on startup
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err.message);
+    return;
+  }
+  console.log('✅ Database connected successfully');
+  release();
+});
+
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 // Middleware to log requests

@@ -216,7 +216,6 @@ const DriverDashboard = () => {
       </button>
 
       <h2 style={{ marginTop: 0, fontSize: '2em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <img src="../assets/BB logo.png" alt="BB Logo" style={{ height: '1.5em', marginRight: '10px' }} />
         Delivery Portal
       </h2>
       <div style={{ marginBottom: '12px' }}>
