@@ -13,7 +13,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-const { nanoid } = require("nanoid");
+
 
 ChartJS.register(
   CategoryScale,
