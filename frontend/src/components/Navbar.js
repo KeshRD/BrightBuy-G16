@@ -120,9 +120,6 @@ const Navbar = () => {
                   <button onClick={() => { setMenuOpen(false); navigate("/profile"); }}>
                     Profile
                   </button>
-                  <button onClick={() => { setMenuOpen(false); navigate("/orders"); }}>
-                    Orders
-                  </button>
                   <button className="logout-btn" onClick={handleLogout}>
                     Logout
                   </button>

@@ -376,28 +376,39 @@ app.get('/orders', authenticate, async (req, res) => {
         o.order_id,
         o.order_date,
         o.order_status,
+        COALESCE(pay.payment_status, 'Pending') AS payment_status,
         SUM(oi.quantity * oi.price_at_purchase) AS total_amount,
         JSON_AGG(
           JSON_BUILD_OBJECT(
             'variant_id', v.variant_id,
             'product_name', p.product_name,
             'variant_name', v.variant_name,
-            'quantity', oi.quantity
+            'quantity', oi.quantity,
+            'price_at_purchase', oi.price_at_purchase
           )
-        ) AS items
+        ) AS items,
+        -- derive the bucket for UI
+        CASE
+          WHEN COALESCE(pay.payment_status, 'Pending') = 'Pending' THEN 'toPay'
+          WHEN o.order_status = 'Pending' THEN 'toShip'
+          WHEN o.order_status = 'In Transit' THEN 'toReceive'
+          WHEN o.order_status = 'Delivered' THEN 'received'
+          ELSE 'other'
+        END AS bucket
       FROM "Order" o
       LEFT JOIN "OrderItem" oi ON o.order_id = oi.order_id
       LEFT JOIN "Variant" v ON oi.variant_id = v.variant_id
       LEFT JOIN "Product" p ON v.product_id = p.product_id
+      LEFT JOIN "Payment" pay ON pay.order_id = o.order_id
       WHERE o.user_id = $1
-      GROUP BY o.order_id, o.order_date, o.order_status
+      GROUP BY o.order_id, o.order_date, o.order_status, pay.payment_status
       ORDER BY o.order_date DESC;
     `;
 
     const { rows } = await pool.query(query, [userId]);
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching orders:', err.stack || err);
+    console.error('Error fetching orders:', err.stack);
     res.status(500).json({ success: false, message: 'Failed to fetch orders' });
   }
 });
