@@ -1,66 +1,136 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import './navbar.css';
-
-import cartIcon from '../assets/cart.svg';
-import userIcon from '../assets/user.svg';
+// src/components/Navbar.js
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import "./navbar.css";
+import homeIcon from "../assets/home.svg";
+import cartIcon from "../assets/cart.svg";
+import userIcon from "../assets/user.svg";
 
 const Navbar = () => {
-  const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [cartItemCount, setCartItemCount] = useState(0);
   const navigate = useNavigate();
+  const [searchText, setSearchText] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);   // 👈 dropdown toggle
+  const menuRef = useRef(null);
 
+  // fetch suggestions
   useEffect(() => {
-    const fetchCartItems = async () => {
+    if (!searchText.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    const t = setTimeout(async () => {
       try {
-        const token = localStorage.getItem('token');
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        if (!token) {
-          setCartItemCount(0);
-          return;
-        }
-        const response = await axios.get('http://localhost:5000/cart', { headers });
-        setCartItemCount(Array.isArray(response.data) ? response.data.length : 0);
-      } catch (error) {
-        console.error('Failed to fetch cart count', error.response?.data || error.message || error);
+        const res = await axios.get(
+          `http://localhost:5000/products?search=${encodeURIComponent(searchText)}`
+        );
+        setSuggestions(Array.isArray(res.data) ? res.data.slice(0, 6) : []);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchText]);
+
+  // close menu if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
       }
     };
-
-    fetchCartItems();
-    const interval = setInterval(fetchCartItems, 5000);
-    return () => clearInterval(interval);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleSearch = () => {
+    if (searchText.trim()) {
+      navigate(`/home?query=${encodeURIComponent(searchText)}`);
+      setShowSuggestions(false);
+    }
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
-    navigate('/');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/");
+    setMenuOpen(false);
   };
 
   return (
-    <nav className="navbar">
-      <div className="navbar-brand" onClick={() => navigate('/home')}>
-        Bright Buy
-      </div>
-      <div className="navbar-icons">
-        <div className="navbar-icon cart-icon" onClick={() => navigate('/cart')}>
-          <img src={cartIcon} alt="Cart" width="24" height="24" />
-          {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
+    <header className="navbar">
+      <div className="navbar-inner unified">
+        <div className="navbar-brand" onClick={() => navigate("/home")}>
+          BrightBuy
         </div>
-        <div className="navbar-icon user-icon" onClick={() => setDropdownVisible(!dropdownVisible)}>
-          <img src={userIcon} alt="User Profile" width="24" height="24" />
-          {dropdownVisible && (
-            <div className="dropdown-menu">
-              <Link to="/profile" onClick={() => setDropdownVisible(false)}>My Profile</Link>
-              <Link to="/orders" onClick={() => setDropdownVisible(false)}>My Orders</Link>
-              <Link to="/" onClick={handleLogout}>Logout</Link>
+
+        <div />
+
+        <div className="navbar-right">
+          <div className="navbar-search">
+            <div className="search-wrap">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+              />
+              <button className="search-btn" onClick={handleSearch}>Search</button>
+
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="search-suggestions">
+                  {suggestions.map((p) => (
+                    <li
+                      key={p.product_id}
+                      className="suggestion-item"
+                      onClick={() => navigate(`/product/${p.product_id}`)}
+                    >
+                      <div className="s-title">{p.product_name}</div>
+                      <div className="s-meta">{p.category_name} • SKU_{p.SKU}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          )}
+          </div>
+
+          <div className="navbar-icons">
+            <button className="navbar-icon" onClick={() => navigate("/home")}>
+              <img src={homeIcon} alt="Home" />
+            </button>
+
+            <button className="navbar-icon" onClick={() => navigate("/cart")}>
+              <img src={cartIcon} alt="Cart" />
+            </button>
+
+            {/* 👇 User dropdown */}
+            <div className="user-dropdown" ref={menuRef}>
+              <button
+                className="navbar-icon"
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                <img src={userIcon} alt="User" />
+              </button>
+
+              {menuOpen && (
+                <div className="user-dropdown-panel">
+                  <button onClick={() => { setMenuOpen(false); navigate("/profile"); }}>
+                    Profile
+                  </button>
+                  <button className="logout-btn" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* 👆 End dropdown */}
+          </div>
         </div>
       </div>
-    </nav>
+    </header>
   );
 };
 

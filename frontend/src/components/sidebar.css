@@ -1,0 +1,133 @@
+/* ===== Full-bleed layout: Sidebar hard-left, content right ===== */
+.bb-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 260px 1fr; /* sidebar | content */
+  gap: 24px;
+  padding: 0;
+  margin: 0;
+}
+
+/* Optional inner wrapper for content spacing */
+.bb-content-wrap {
+  padding: 0 24px 24px 0; /* right & bottom breathing room */
+}
+
+/* ===== Sidebar ===== */
+.bb-sidebar {
+  position: sticky;
+  top: 60px; /* match your navbar height */
+  align-self: start;
+  height: calc(100vh - 60px);
+
+  background: #1c1f24;
+  border: 1px solid rgba(255,255,255,.06);
+  border-left: none;                 /* flush left */
+  border-radius: 0 12px 12px 0;      /* only right corners rounded */
+  padding: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0,0,0,.25);
+}
+
+.bb-sidebar-header {
+  font-weight: 800;
+  color: #e5e7eb;
+  margin: 2px 0 10px;
+  font-size: 1.25rem;
+  letter-spacing: .2px;
+}
+
+/* Scrollable list */
+.bb-cat-list {
+  overflow-y: auto;
+  flex-grow: 1;
+  padding-right: 6px; /* room for scrollbar */
+}
+
+/* Category pill */
+.bb-cat {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  margin: 4px 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #cdd3de;
+  cursor: pointer;
+  transition: background .2s, border-color .2s, color .2s, transform .08s;
+}
+
+.bb-cat:hover {
+  background: #24282e;
+  border-color: #2f3540;
+  color: #fff;
+}
+
+.bb-cat:active { transform: translateY(1px); }
+
+.bb-cat.active {
+  background: rgba(97,218,251,.12);
+  border-color: #61dafb;
+  color: #bfe8f7;
+  font-weight: 700;
+}
+
+/* ===== Content area ===== */
+.bb-content { min-width: 0; }
+
+/* Section heading */
+.bb-heading {
+  margin: 0 0 18px;
+  font-size: clamp(1.6rem, 2.4vw + 1rem, 2.2rem);
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: .3px;
+  color: #eef1f6;
+}
+
+/* Subtle divider under heading */
+.bb-heading-divider {
+  width: 80px;
+  height: 3px;
+  background: linear-gradient(90deg, #61dafb, #36a9e1);
+  border-radius: 999px;
+  margin: 8px auto 20px;
+  opacity: .9;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .bb-layout {
+    grid-template-columns: 1fr; /* stack */
+    gap: 12px;
+  }
+
+  .bb-sidebar {
+    position: static;
+    height: auto;
+    border-left: 1px solid rgba(255,255,255,.06);
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  /* On mobile, categories become a horizontal scroller */
+  .bb-cat-list {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    gap: 8px;
+    padding-bottom: 6px;
+  }
+
+  .bb-cat {
+    display: inline-block;
+    width: auto;
+    margin: 4px 0;
+  }
+
+  .bb-content-wrap { padding: 0 4px 16px; }
+}
