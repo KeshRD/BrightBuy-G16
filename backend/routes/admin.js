@@ -4,6 +4,9 @@ const router = express.Router();
 const { Pool } = require("pg");
 require("dotenv").config();
 
+const { nanoid } = require('nanoid');
+
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -29,6 +32,109 @@ router.get("/products", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+/**
+ * @route   GET /api/admin/categories
+ * @desc    Get all categories for dropdowns
+ */
+router.get("/categories", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT category_id, category_name AS name 
+      FROM "Category" 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Categories fetch error:", err.stack);
+    res.status(500).send("Server error");
+  }
+});
+
+// backend/routes/admin.js
+// ... (keep all your imports and other routes) ...
+
+/**
+ * @route   POST /api/admin/products
+ * @desc    Add a new product (with its first variant)
+ */
+router.post("/products", async (req, res) => {
+  // --- 1. GET 'price_at_purchase' from body ---
+  const { product_name, variant, category_id, stock_quantity, price, price_at_purchase, description, image } = req.body;
+
+  // --- 2. VALIDATE 'price_at_purchase' ---
+  if (!product_name || !variant || !category_id || !stock_quantity || !price || !price_at_purchase || !description || !image) {
+    return res.status(400).json({ message: "All fields, including an image, are required" });
+  }
+
+  // --- 3. Product Name Uniqueness Check (from trigger) ---
+  // We still need to check for the error code, but the check itself is done by the DB
+
+  // --- 4. SKU Generation (from trigger) ---
+  // This is now handled entirely by the database trigger
+
+  // --- 5. Database Transaction ---
+  const client = await pool.connect(); 
+  try {
+    await client.query("BEGIN"); 
+
+    const productQuery = `
+      INSERT INTO "Product" (product_name, category_id, description, image)
+      VALUES ($1, $2, $3, $4)
+      RETURNING product_id, "SKU"; 
+    `;
+    const productRes = await client.query(productQuery, [
+      product_name,
+      category_id,
+      description,
+      image 
+    ]);
+    const newProductId = productRes.rows[0].product_id;
+    const generatedSku = productRes.rows[0].SKU;
+
+    console.log(`Generated SKU ${generatedSku} for new product.`);
+
+    // --- 6. FIX: Use the new variable in the query ---
+    const variantQuery = `
+      INSERT INTO "Variant" (product_id, variant_name, stock_quantity, price, price_at_purchase)
+      VALUES ($1, $2, $3, $4, $5) 
+      RETURNING *;
+    `;
+    const variantRes = await client.query(variantQuery, [
+      newProductId,
+      variant, 
+      stock_quantity,
+      price,
+      price_at_purchase // <-- Use the new variable here ($5)
+    ]);
+
+    await client.query("COMMIT");
+    res.json({
+      message: "Product and variant added successfully",
+      product: productRes.rows[0],
+      variant: variantRes.rows[0],
+    });
+
+  } catch (err) {
+    // --- 7. Error Handling (Unchanged) ---
+    await client.query("ROLLBACK").catch(() => {});
+    
+    if (err.code === '23505') { 
+      // Check for the unique index name (it might be 'product_name_unique_idx')
+      if (err.constraint === 'product_name_unique' || err.constraint === 'product_name_unique_idx') {
+        return res.status(400).json({ message: "A product with this name already exists. Please use a different name." });
+      }
+    }
+    
+    console.error("Add product error:", err.stack);
+    res.status(500).send("Server error while adding product");
+  } finally {
+    client.release();
+  }
+});
+
+// ... (keep all your other routes) ...
+module.exports = router;
 
 /* ===== Orders with Delivery Info ===== */
 router.get("/orders-with-delivery", async (req, res) => {
@@ -332,6 +438,36 @@ router.get("/stats/netincome", async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/admin/stats/category-orders
+ * @desc    Get total sold quantity and revenue per product category
+ */
+router.get("/stats/category-orders", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        c.category_name AS category,
+        SUM(oi.quantity) AS total_sold,
+        SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
+      FROM "OrderItem" oi
+      JOIN "Order" o ON oi.order_id = o.order_id
+      JOIN "Payment" p ON o.order_id = p.order_id
+      JOIN "Variant" v ON oi.variant_id = v.variant_id
+      JOIN "Product" pr ON v.product_id = pr.product_id
+      JOIN "Category" c ON pr.category_id = c.category_id
+      WHERE p.payment_status = 'Paid'
+      GROUP BY c.category_name
+      ORDER BY total_sold DESC;
+    `;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Category orders fetch error:", err.stack);
+    res.status(500).send("Server error while fetching category orders");
+  }
+});
+
 
 /**
  * @route   GET /api/admin/stats/top-products
@@ -339,19 +475,45 @@ router.get("/stats/netincome", async (req, res) => {
  */
 router.get("/stats/top-products", async (req, res) => {
   try {
+    const { period = "3_months" } = req.query;
+
+    let startDate = new Date();
+    switch (period) {
+      case "1_month":
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case "3_months":
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      case "6_months":
+        startDate.setMonth(startDate.getMonth() - 6);
+        break;
+      case "1_year":
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+      default:
+        startDate.setMonth(startDate.getMonth() - 3);
+    }
+
     const query = `
-      SELECT 
-        p.product_name,
-        SUM(oi.quantity) AS total_sold,
-        SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
-      FROM "OrderItem" oi
-      JOIN "Variant" v ON oi.variant_id = v.variant_id
-      JOIN "Product" p ON v.product_id = p.product_id
-      GROUP BY p.product_id, p.product_name
-      ORDER BY total_sold DESC
-      LIMIT 5;
+      SELECT
+  p.product_name,
+  SUM(oi.quantity) AS total_sold,
+  SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
+FROM "OrderItem" oi
+JOIN "Order" o ON oi.order_id = o.order_id
+JOIN "Payment" pay ON o.order_id = pay.order_id
+JOIN "Variant" v ON oi.variant_id = v.variant_id
+JOIN "Product" p ON v.product_id = p.product_id
+WHERE pay.payment_status = 'Paid'
+  AND o.order_date >= $1
+GROUP BY p.product_name
+ORDER BY total_sold DESC
+LIMIT 5;
+
     `;
-    const result = await pool.query(query);
+
+    const result = await pool.query(query, [startDate]);
     res.json(result.rows);
   } catch (err) {
     console.error("Top products fetch error:", err.stack);
@@ -359,12 +521,24 @@ router.get("/stats/top-products", async (req, res) => {
   }
 });
 
+
 /**
  * @route   GET /api/admin/stats/sales-performance
  * @desc    Get sales performance over time (daily sales in the past 30 days)
  */
 router.get("/stats/sales-performance", async (req, res) => {
   try {
+    const { quarter = "Q1", year = new Date().getFullYear() } = req.query;
+
+    let startMonth, endMonth;
+    switch (quarter) {
+      case "Q1": startMonth = 1; endMonth = 3; break;
+      case "Q2": startMonth = 4; endMonth = 6; break;
+      case "Q3": startMonth = 7; endMonth = 9; break;
+      case "Q4": startMonth = 10; endMonth = 12; break;
+      default: startMonth = 1; endMonth = 3;
+    }
+
     const query = `
       SELECT 
         DATE(o.order_date) AS date,
@@ -373,16 +547,20 @@ router.get("/stats/sales-performance", async (req, res) => {
       JOIN "OrderItem" oi ON o.order_id = oi.order_id
       JOIN "Payment" p ON o.order_id = p.order_id
       WHERE p.payment_status = 'Paid'
+        AND EXTRACT(MONTH FROM o.order_date) BETWEEN $1 AND $2
+        AND EXTRACT(YEAR FROM o.order_date) = $3
       GROUP BY DATE(o.order_date)
       ORDER BY DATE(o.order_date) ASC;
     `;
-    const result = await pool.query(query);
+
+    const result = await pool.query(query, [startMonth, endMonth, year]);
     res.json(result.rows);
   } catch (err) {
     console.error("Sales performance fetch error:", err.stack);
     res.status(500).send("Server error while fetching sales performance");
   }
 });
+
 
 /**
  * @route   GET /api/admin/stats/payment-methods
@@ -404,5 +582,60 @@ router.get("/stats/payment-methods", async (req, res) => {
     res.status(500).send("Server error while fetching payment method stats");
   }
 });
+
+/* ===== Update User Role ===== */
+router.patch("/users/:id/role", async (req, res) => {
+  const { id } = req.params;
+  const { role, address } = req.body; // 👈 include address
+
+  const validRoles = ["Admin", "Registered Customer", "Supplier", "Delivery Driver"];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ error: "Invalid role value" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userRes = await client.query('SELECT * FROM "User" WHERE "user_id" = $1', [id]);
+    if (userRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userRes.rows[0];
+
+    if (role === "Supplier") {
+      // Validate that address is provided
+      if (!address || address.trim() === "") {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Supplier address is required" });
+      }
+
+      // Insert supplier with address
+      await client.query(
+        `INSERT INTO "Supplier" ("supplier_name", "phone", "email", "address")
+         VALUES ($1, $2, $3, $4)`,
+        [user.name, user.phone, user.email, address]
+      );
+
+      // Delete user from User table
+      await client.query('DELETE FROM "User" WHERE "user_id" = $1', [id]);
+    } else {
+      // Regular role update
+      await client.query('UPDATE "User" SET "role" = $1 WHERE "user_id" = $2', [role, id]);
+    }
+
+    await client.query("COMMIT");
+    res.status(200).json({ message: "Role updated successfully." });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating user role:", err);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    client.release();
+  }
+});
+
 
 module.exports = router;

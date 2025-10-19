@@ -3,18 +3,18 @@
 .product-detail {
   max-width: 800px;
   text-align: left;
-  /* Add these lines to enable flexbox and center children */
   display: flex;
   flex-direction: column;
 }
 
-.product-detail-image {
+
+.product-card-image {
   width: 100%;
-  max-width: 400px;
-  height: auto;
+  max-width: 800px; 
+  height: auto;     
   border-radius: 8px;
   margin-bottom: 20px;
-  align-self: center; /* This will now work correctly */
+  align-self: center;
 }
 
 .product-detail ul {

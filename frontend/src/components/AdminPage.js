@@ -1,5 +1,5 @@
 // src/components/AdminPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Line, Doughnut } from "react-chartjs-2";
@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+const { nanoid } = require("nanoid");
 
 ChartJS.register(
   CategoryScale,
@@ -37,7 +38,7 @@ const AdminPage = () => {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar */}
+
       <nav
         style={{
           width: "220px",
@@ -50,7 +51,7 @@ const AdminPage = () => {
           height: "100vh",
         }}
       >
-        {/* Top part: logo and tabs */}
+  
         <div>
           <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Admin Panel</h2>
           <ul style={{ listStyle: "none", padding: 0 }}>
@@ -75,7 +76,7 @@ const AdminPage = () => {
           </ul>
         </div>
 
-        {/* Bottom part: Logout */}
+      
         <div>
           <li
             style={{ ...linkStyle(false), background: "#B91C1C", marginTop: "20px" }}
@@ -86,7 +87,7 @@ const AdminPage = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
+
       <div style={{ flex: 1, padding: "20px", background: "#111827", color: "#fff" }}>
         {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "products" && <Products />}
@@ -113,27 +114,24 @@ const linkStyle = (active) => ({
   borderRadius: "4px",
 });
 
-/* ===== Dashboard Component (Integrated) ===== */
+/* ===== Dashboard Component (Cleaned) ===== */
 const Dashboard = () => {
   const [netIncome, setNetIncome] = useState(0);
   const [topProducts, setTopProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState({});
+  const [selectedQuarter, setSelectedQuarter] = useState("Q1");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [topProductPeriod, setTopProductPeriod] = useState("3_months");
+  const [categoryOrders, setCategoryOrders] = useState([]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  /* ===== Fetch Dashboard Data ===== */
+  const fetchDashboardData = useCallback(async () => {
     try {
       const netRes = await axios.get("http://localhost:5000/api/admin/stats/netincome");
-      const topRes = await axios.get("http://localhost:5000/api/admin/stats/top-products");
-      const salesRes = await axios.get("http://localhost:5000/api/admin/stats/sales-performance");
       const paymentRes = await axios.get("http://localhost:5000/api/admin/stats/payment-methods");
 
       setNetIncome(netRes.data.net_income || 0);
-      setTopProducts(topRes.data || []);
-      setSalesData(salesRes.data || []);
 
       const paymentObj = {};
       paymentRes.data.forEach((method) => {
@@ -143,8 +141,65 @@ const Dashboard = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
+  /* ===== Fetch Sales Data ===== */
+  const fetchSalesData = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/stats/sales-performance", {
+        params: { quarter: selectedQuarter, year: selectedYear },
+      });
+      setSalesData(res.data || []);
+    } catch (err) {
+      console.error("Error fetching sales data:", err);
+    }
+  }, [selectedQuarter, selectedYear]);
+
+  /* ===== Fetch Top Products ===== */
+  const fetchTopProducts = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/stats/top-products", {
+        params: { period: topProductPeriod },
+      });
+      setTopProducts(res.data || []);
+    } catch (err) {
+      console.error("Error fetching top products:", err);
+    }
+  }, [topProductPeriod]);
+
+  /* ===== Fetch Category Orders ===== */
+  const fetchCategoryOrders = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/stats/category-orders");
+      console.log("Category Orders Response:", res.data);
+      setCategoryOrders(res.data || []);
+      
+    } catch (err) {
+      console.error("Error fetching category orders:", err);
+    }
+  }, []);
+
+  /* ===== Initial Data Fetch ===== */
+  useEffect(() => {
+    fetchDashboardData();
+    fetchSalesData();
+    fetchTopProducts();
+    fetchCategoryOrders();
+  }, [fetchDashboardData, fetchSalesData, fetchTopProducts, fetchCategoryOrders]);
+
+  /* ===== Refetch Sales Data on Quarter / Year Change ===== */
+  useEffect(() => {
+    fetchSalesData();
+  }, [fetchSalesData]);
+
+  /* ===== Refetch Top Products on Period Change ===== */
+  useEffect(() => {
+    fetchTopProducts();
+  }, [fetchTopProducts]);
+
+  const handleTopProductPeriodChange = (e) => setTopProductPeriod(e.target.value);
+
+  /* ===== Chart Data ===== */
   const lineChartData = {
     labels: salesData.map((item) => item.date),
     datasets: [
@@ -188,16 +243,47 @@ const Dashboard = () => {
             {Object.keys(paymentMethods).length > 0 ? (
               <Doughnut
                 data={doughnutData}
-                options={{
-                  maintainAspectRatio: false,
-                  plugins: { legend: { position: "bottom" } },
-                }}
+                options={{ maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
               />
             ) : (
               <p>No payment data available.</p>
             )}
           </div>
         </div>
+      </div>
+
+      {/* ===== QUARTER + YEAR SELECTORS ===== */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+        <label>
+          Quarter:
+          <select
+            value={selectedQuarter}
+            onChange={(e) => setSelectedQuarter(e.target.value)}
+            style={dashboardStyles.dropdown}
+          >
+            <option value="Q1">Q1 (Jan - Mar)</option>
+            <option value="Q2">Q2 (Apr - Jun)</option>
+            <option value="Q3">Q3 (Jul - Sep)</option>
+            <option value="Q4">Q4 (Oct - Dec)</option>
+          </select>
+        </label>
+
+        <label>
+          Year:
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            style={dashboardStyles.dropdown}
+          >
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </label>
+
+        <button onClick={fetchSalesData} style={styles.refreshButton}>
+          Refresh
+        </button>
       </div>
 
       {/* ===== SALES PERFORMANCE ===== */}
@@ -208,7 +294,20 @@ const Dashboard = () => {
 
       {/* ===== TOP PRODUCTS ===== */}
       <div style={dashboardStyles.tableContainer}>
-        <h3>Top Selling Products</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <h3>Top Selling Products</h3>
+          <select
+            value={topProductPeriod}
+            onChange={handleTopProductPeriodChange}
+            style={dashboardStyles.dropdown}
+          >
+            <option value="1_month">Last Month</option>
+            <option value="3_months">Last 3 Months</option>
+            <option value="6_months">Last 6 Months</option>
+            <option value="1_year">Last Year</option>
+          </select>
+        </div>
+
         <table style={dashboardStyles.table}>
           <thead>
             <tr>
@@ -236,9 +335,41 @@ const Dashboard = () => {
           </tbody>
         </table>
       </div>
+
+      {/* ===== CATEGORY-WISE TOTAL ORDERS ===== */}
+<div style={{ ...dashboardStyles.tableContainer, marginTop: "30px" }}>
+  <h3>Category-wise Total Orders</h3>
+  <table style={dashboardStyles.table}>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Total Sold</th>
+        {/*<th>Total Revenue ($)</th>*/}
+      </tr>
+    </thead>
+    <tbody>
+      {categoryOrders.length > 0 ? (
+        categoryOrders.map((cat, i) => (
+          <tr key={i}>
+            <td>{cat.category}</td>
+            <td>{cat.total_sold}</td>
+            {/*<td>{cat.total_revenue}</td>*/}
+          </tr>
+        ))
+      ) : (
+        <tr>
+          <td colSpan="3">No category data available.</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
     </div>
   );
 };
+
+
 
 const dashboardStyles = {
   topRow: {
@@ -291,6 +422,16 @@ const dashboardStyles = {
     width: "100%",
     borderCollapse: "collapse",
   },
+  dropdown: {
+    marginLeft: "5px",
+    padding: "5px",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
+    background: "#111827",
+    color: "#fff",
+  },
+
+  
 };
 
 /* ===== Other Admin Components ===== */
@@ -298,13 +439,18 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
+  //const [topProductPeriod, setTopProductPeriod] = useState("3_months"); // default
+
+  
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
   }, []);
 
   useEffect(() => {
-    // Filter whenever searchTerm changes
+
     setFilteredProducts(
       products.filter(
         (p) =>
@@ -324,42 +470,70 @@ const Products = () => {
       console.error(err);
     }
   };
+  
+
+
+
 
   return (
     <div>
       <h2>Products</h2>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", gap: "5px" }}>
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: "6px 10px",
-            borderRadius: "4px 0 0 4px",
-            border: "1px solid #ccc",
-            width: "200px",
-          }}
-        />
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", gap: "5px"}}>
+
+   
         <button
-          onClick={() => {}}
+          onClick={() => navigate('/admin/products/new')}
           style={{
             padding: "6px 12px",
             border: "1px solid #ccc",
             borderLeft: "none",
-            borderRadius: "0 4px 4px 0",
+            borderRadius: "4px",
             background: "#10B981",
             color: "#fff",
             cursor: "pointer",
           }}
         >
-          Search
+          Add Product
         </button>
+
+       
+        <div style={{ display: "flex", gap: "0px" }}>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.g.target.value)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "4px 0 0 4px",
+              border: "1px solid #ccc",
+              width: "200px",
+            }}
+          />
+          <button
+            onClick={() => {}} 
+            style={{
+              padding: "6px 12px",
+              border: "1px solid #ccc",
+              borderLeft: "none",
+              borderRadius: "0 4px 4px 0",
+              background: "#10B981",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Search
+          </button>
+        </div>
       </div>
+      
       <Table
         data={filteredProducts}
         columns={["variant_id", "product_name", "variant","category", "stock_quantity", "price"]}
       />
+
+ 
+      
     </div>
   );
 };
@@ -705,24 +879,204 @@ const Reports = () => {
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
+  const [selectedRole, setSelectedRole] = useState({});
+  const [showModal, setShowModal] = useState(false);
+  const [modalCustomer, setModalCustomer] = useState(null);
+  const [supplierAddress, setSupplierAddress] = useState("");
+
   useEffect(() => {
     fetchData();
   }, []);
+
   const fetchData = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/admin/customers");
       setCustomers(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching customers:", err);
     }
   };
+
+  const handleRoleSelect = (id, newRole) => {
+    setSelectedRole((prev) => ({ ...prev, [id]: newRole }));
+  };
+
+  const handleChangeRole = async (cust) => {
+    const newRole = selectedRole[cust.customer_id];
+    if (!newRole) {
+      alert("Please select a role first.");
+      return;
+    }
+
+    // If Supplier — open popup
+    if (newRole === "Supplier") {
+      setModalCustomer(cust);
+      setShowModal(true);
+      return;
+    }
+
+    // Otherwise — directly update role
+    try {
+      await axios.patch(`http://localhost:5000/api/admin/users/${cust.customer_id}/role`, {
+        role: newRole,
+      });
+      alert("Role updated successfully!");
+      fetchData();
+    } catch (err) {
+      console.error("Error updating role:", err);
+      alert("Failed to update role.");
+    }
+  };
+
+  const handleSupplierSubmit = async () => {
+    if (!supplierAddress.trim()) {
+      alert("Please enter the supplier's address.");
+      return;
+    }
+
+    try {
+      await axios.patch(`http://localhost:5000/api/admin/users/${modalCustomer.customer_id}/role`, {
+        role: "Supplier",
+        address: supplierAddress,
+      });
+      alert("Role updated and supplier added successfully!");
+      setShowModal(false);
+      setSupplierAddress("");
+      fetchData();
+    } catch (err) {
+      console.error("Error updating supplier role:", err);
+      alert("Failed to update supplier role.");
+    }
+  };
+
   return (
     <div>
       <h2>Customers</h2>
-      <Table data={customers} columns={["customer_id", "name", "email", "phone"]} />
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th>Customer ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Current Role</th>
+            <th>Change Role</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {customers.length > 0 ? (
+            customers.map((cust) => (
+              <tr key={cust.customer_id}>
+                <td>{cust.customer_id}</td>
+                <td>{cust.name}</td>
+                <td>{cust.email}</td>
+                <td>{cust.phone}</td>
+                <td>{cust.role || "Registered Customer"}</td>
+                <td>
+                  <select
+                    value={selectedRole[cust.customer_id] || cust.role || "Registered Customer"}
+                    onChange={(e) => handleRoleSelect(cust.customer_id, e.target.value)}
+                    style={{
+                      background: "#111827",
+                      color: "#fff",
+                      padding: "6px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <option value="Registered Customer">Customer</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Supplier">Supplier</option>
+                    <option value="Delivery Driver">Delivery Driver</option>
+                  </select>
+                </td>
+                <td>
+                  <button
+                    onClick={() => handleChangeRole(cust)}
+                    style={{
+                      background: "#3B82F6",
+                      color: "#fff",
+                      border: "none",
+                      padding: "6px 10px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Change Role
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="7">No customers found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      {/* ========== Supplier Modal ========== */}
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h3 style={{ marginBottom: "15px" }}>
+              Convert <span style={{ color: "#3B82F6" }}>{modalCustomer.name}</span> to Supplier
+            </h3>
+            <p>Enter supplier address:</p>
+            <input
+              type="text"
+              placeholder="Supplier address"
+              value={supplierAddress}
+              onChange={(e) => setSupplierAddress(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                margin: "10px 0",
+                borderRadius: "6px",
+                border: "1px solid #444",
+                background: "#111827",
+                color: "#fff",
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  background: "#6B7280",
+                  color: "#fff",
+                  border: "none",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSupplierSubmit}
+                style={{
+                  background: "#10B981",
+                  color: "#fff",
+                  border: "none",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+
+
+
+
 
 const Suppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -764,7 +1118,7 @@ const DeliveryDrivers = () => {
   return (
     <div>
       <h2>Delivery Drivers</h2>
-      <Table data={DeliveryDrivers} columns={["delivery_id", "name", "email", "phone", "joined_on"]} />
+      <Table data={DeliveryDrivers} columns={["delivery_id", "name", "email", "phone"]} />
     </div>
   );
 };
