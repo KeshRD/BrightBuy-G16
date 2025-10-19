@@ -200,6 +200,36 @@ AFTER INSERT OR UPDATE OR DELETE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_variant_stock_on_transaction();
 
+-- =============================================================================
+--  TRIGGER FUNCTION: Populates the "SKU" column with a unique, generated ID
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION set_unique_sku()
+RETURNS TRIGGER AS $$
+DECLARE
+  new_sku TEXT;
+  is_unique BOOLEAN := FALSE;
+BEGIN
+  WHILE NOT is_unique LOOP
+    new_sku := 'SKU_' || UPPER(
+      REPLACE(
+        REPLACE(
+          encode(gen_random_bytes(6), 'base64'),
+        '+', '_'),
+      '/', '-')
+    );
+    
+    PERFORM 1 FROM "Product" WHERE "SKU" = new_sku;
+    IF NOT FOUND THEN
+      is_unique := TRUE;
+    END IF;
+  END LOOP;
+  
+  NEW."SKU" := new_sku;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ===== CATEGORY =====
 INSERT INTO "Category" ("category_name") VALUES
 ('Smartphones'),

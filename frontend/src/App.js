@@ -11,8 +11,9 @@ import PaymentPage from './components/PaymentPage';
 import OrdersPage from './components/OrdersPage';
 import AdminPage from './components/AdminPage';
 import DriverDashboard from './components/DriverDashboard';
+import AddProductPage from './components/AddProductPage';
 import './App.css';
-import './components/navbar.css'; // Import Navbar styles globally
+import './components/navbar.css'; 
 
 
 function App() {
@@ -28,7 +29,8 @@ function App() {
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/orderConfirm" element={<OrderConfirmation />} />
         <Route path="/orders" element={<OrdersPage />} />
-  <Route path="/driver" element={<DriverDashboard />} />
+        <Route path="/driver" element={<DriverDashboard />} />
+        <Route path="/admin/products/new" element={<AddProductPage />} />
 
       </Routes>
     </div>

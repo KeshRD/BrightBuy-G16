@@ -106,7 +106,7 @@ const CartPage = () => {
               alt={item.product_name}
               className="product-card-image"
             />
-                <img src={item.image} alt={item.product_name} className="cart-item-image" />
+               
                 <div className="cart-item-details">
                   <h3>{item.product_name} - {item.variant_name}</h3>
                   <p>Price: ${parseFloat(item.price).toFixed(2)}</p>

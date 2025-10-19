@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+const { nanoid } = require("nanoid");
 
 ChartJS.register(
   CategoryScale,
@@ -37,7 +38,7 @@ const AdminPage = () => {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar */}
+
       <nav
         style={{
           width: "220px",
@@ -50,7 +51,7 @@ const AdminPage = () => {
           height: "100vh",
         }}
       >
-        {/* Top part: logo and tabs */}
+  
         <div>
           <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Admin Panel</h2>
           <ul style={{ listStyle: "none", padding: 0 }}>
@@ -75,7 +76,7 @@ const AdminPage = () => {
           </ul>
         </div>
 
-        {/* Bottom part: Logout */}
+      
         <div>
           <li
             style={{ ...linkStyle(false), background: "#B91C1C", marginTop: "20px" }}
@@ -86,7 +87,7 @@ const AdminPage = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
+
       <div style={{ flex: 1, padding: "20px", background: "#111827", color: "#fff" }}>
         {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "products" && <Products />}
@@ -440,13 +441,16 @@ const Products = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   //const [topProductPeriod, setTopProductPeriod] = useState("3_months"); // default
 
+  
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
   }, []);
 
   useEffect(() => {
-    // Filter whenever searchTerm changes
+
     setFilteredProducts(
       products.filter(
         (p) =>
@@ -466,44 +470,70 @@ const Products = () => {
       console.error(err);
     }
   };
+  
+
 
 
 
   return (
     <div>
       <h2>Products</h2>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", gap: "5px" }}>
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: "6px 10px",
-            borderRadius: "4px 0 0 4px",
-            border: "1px solid #ccc",
-            width: "200px",
-          }}
-        />
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", gap: "5px"}}>
+
+   
         <button
-          onClick={() => {}}
+          onClick={() => navigate('/admin/products/new')}
           style={{
             padding: "6px 12px",
             border: "1px solid #ccc",
             borderLeft: "none",
-            borderRadius: "0 4px 4px 0",
+            borderRadius: "4px",
             background: "#10B981",
             color: "#fff",
             cursor: "pointer",
           }}
         >
-          Search
+          Add Product
         </button>
+
+       
+        <div style={{ display: "flex", gap: "0px" }}>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.g.target.value)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "4px 0 0 4px",
+              border: "1px solid #ccc",
+              width: "200px",
+            }}
+          />
+          <button
+            onClick={() => {}} 
+            style={{
+              padding: "6px 12px",
+              border: "1px solid #ccc",
+              borderLeft: "none",
+              borderRadius: "0 4px 4px 0",
+              background: "#10B981",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Search
+          </button>
+        </div>
       </div>
+      
       <Table
         data={filteredProducts}
         columns={["variant_id", "product_name", "variant","category", "stock_quantity", "price"]}
       />
+
+ 
+      
     </div>
   );
 };
