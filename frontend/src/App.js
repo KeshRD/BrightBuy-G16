@@ -14,6 +14,7 @@ import DriverDashboard from './components/DriverDashboard';
 import AddProductPage from './components/AddProductPage';
 import './App.css';
 import './components/navbar.css'; 
+import ProfilePage from "./components/ProfilePage";
 
 
 function App() {
@@ -32,7 +33,7 @@ function App() {
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/driver" element={<DriverDashboard />} />
         <Route path="/admin/products/new" element={<AddProductPage />} />
-
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </div>
   );
