@@ -1,4 +1,3 @@
-// src/components/Navbar.js
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -13,6 +12,7 @@ const Navbar = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);   // 👈 dropdown toggle
+  const [cartItemCount, setCartItemCount] = useState(0);
   const menuRef = useRef(null);
 
   // fetch suggestions
@@ -43,6 +43,28 @@ const Navbar = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // fetch cart count
+  useEffect(() => {
+    const fetchCartItems = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        if (!token) {
+          setCartItemCount(0);
+          return;
+        }
+        const response = await axios.get("http://localhost:5000/cart", { headers });
+        setCartItemCount(Array.isArray(response.data) ? response.data.length : 0);
+      } catch (error) {
+        console.error("Failed to fetch cart count", error.response?.data || error.message || error);
+      }
+    };
+
+    fetchCartItems();
+    const interval = setInterval(fetchCartItems, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSearch = () => {
@@ -97,6 +119,12 @@ const Navbar = () => {
             </div>
           </div>
 
+          <div className="navbar-links">
+            <button className="navbar-link-btn" onClick={() => navigate("/products")}>
+              Our Products
+            </button>
+          </div>
+
           <div className="navbar-icons">
             <button className="navbar-icon" onClick={() => navigate("/home")}>
               <img src={homeIcon} alt="Home" />
@@ -104,6 +132,7 @@ const Navbar = () => {
 
             <button className="navbar-icon" onClick={() => navigate("/cart")}>
               <img src={cartIcon} alt="Cart" />
+              {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
             </button>
 
             {/* 👇 User dropdown */}
