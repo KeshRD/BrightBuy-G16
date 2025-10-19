@@ -735,24 +735,204 @@ const Reports = () => {
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
+  const [selectedRole, setSelectedRole] = useState({});
+  const [showModal, setShowModal] = useState(false);
+  const [modalCustomer, setModalCustomer] = useState(null);
+  const [supplierAddress, setSupplierAddress] = useState("");
+
   useEffect(() => {
     fetchData();
   }, []);
+
   const fetchData = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/admin/customers");
       setCustomers(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching customers:", err);
     }
   };
+
+  const handleRoleSelect = (id, newRole) => {
+    setSelectedRole((prev) => ({ ...prev, [id]: newRole }));
+  };
+
+  const handleChangeRole = async (cust) => {
+    const newRole = selectedRole[cust.customer_id];
+    if (!newRole) {
+      alert("Please select a role first.");
+      return;
+    }
+
+    // If Supplier — open popup
+    if (newRole === "Supplier") {
+      setModalCustomer(cust);
+      setShowModal(true);
+      return;
+    }
+
+    // Otherwise — directly update role
+    try {
+      await axios.patch(`http://localhost:5000/api/admin/users/${cust.customer_id}/role`, {
+        role: newRole,
+      });
+      alert("Role updated successfully!");
+      fetchData();
+    } catch (err) {
+      console.error("Error updating role:", err);
+      alert("Failed to update role.");
+    }
+  };
+
+  const handleSupplierSubmit = async () => {
+    if (!supplierAddress.trim()) {
+      alert("Please enter the supplier's address.");
+      return;
+    }
+
+    try {
+      await axios.patch(`http://localhost:5000/api/admin/users/${modalCustomer.customer_id}/role`, {
+        role: "Supplier",
+        address: supplierAddress,
+      });
+      alert("Role updated and supplier added successfully!");
+      setShowModal(false);
+      setSupplierAddress("");
+      fetchData();
+    } catch (err) {
+      console.error("Error updating supplier role:", err);
+      alert("Failed to update supplier role.");
+    }
+  };
+
   return (
     <div>
       <h2>Customers</h2>
-      <Table data={customers} columns={["customer_id", "name", "email", "phone"]} />
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th>Customer ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Current Role</th>
+            <th>Change Role</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {customers.length > 0 ? (
+            customers.map((cust) => (
+              <tr key={cust.customer_id}>
+                <td>{cust.customer_id}</td>
+                <td>{cust.name}</td>
+                <td>{cust.email}</td>
+                <td>{cust.phone}</td>
+                <td>{cust.role || "Registered Customer"}</td>
+                <td>
+                  <select
+                    value={selectedRole[cust.customer_id] || cust.role || "Registered Customer"}
+                    onChange={(e) => handleRoleSelect(cust.customer_id, e.target.value)}
+                    style={{
+                      background: "#111827",
+                      color: "#fff",
+                      padding: "6px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <option value="Registered Customer">Customer</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Supplier">Supplier</option>
+                    <option value="Delivery Driver">Delivery Driver</option>
+                  </select>
+                </td>
+                <td>
+                  <button
+                    onClick={() => handleChangeRole(cust)}
+                    style={{
+                      background: "#3B82F6",
+                      color: "#fff",
+                      border: "none",
+                      padding: "6px 10px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Change Role
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="7">No customers found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      {/* ========== Supplier Modal ========== */}
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h3 style={{ marginBottom: "15px" }}>
+              Convert <span style={{ color: "#3B82F6" }}>{modalCustomer.name}</span> to Supplier
+            </h3>
+            <p>Enter supplier address:</p>
+            <input
+              type="text"
+              placeholder="Supplier address"
+              value={supplierAddress}
+              onChange={(e) => setSupplierAddress(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                margin: "10px 0",
+                borderRadius: "6px",
+                border: "1px solid #444",
+                background: "#111827",
+                color: "#fff",
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  background: "#6B7280",
+                  color: "#fff",
+                  border: "none",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSupplierSubmit}
+                style={{
+                  background: "#10B981",
+                  color: "#fff",
+                  border: "none",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+
+
+
+
 
 const Suppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -794,7 +974,7 @@ const DeliveryDrivers = () => {
   return (
     <div>
       <h2>Delivery Drivers</h2>
-      <Table data={DeliveryDrivers} columns={["delivery_id", "name", "email", "phone", "joined_on"]} />
+      <Table data={DeliveryDrivers} columns={["delivery_id", "name", "email", "phone"]} />
     </div>
   );
 };

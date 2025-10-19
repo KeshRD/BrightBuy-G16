@@ -40,6 +40,8 @@ const AuthPage = () => {
         if (response.data && response.data.success) {
           const user = response.data.user;
 
+          
+
           // store token + user info
           localStorage.setItem('token', response.data.token);
           localStorage.setItem('user', JSON.stringify(user));
