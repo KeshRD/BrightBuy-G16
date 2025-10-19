@@ -332,6 +332,36 @@ router.get("/stats/netincome", async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/admin/stats/category-orders
+ * @desc    Get total sold quantity and revenue per product category
+ */
+router.get("/stats/category-orders", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        c.category_name AS category,
+        SUM(oi.quantity) AS total_sold,
+        SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
+      FROM "OrderItem" oi
+      JOIN "Order" o ON oi.order_id = o.order_id
+      JOIN "Payment" p ON o.order_id = p.order_id
+      JOIN "Variant" v ON oi.variant_id = v.variant_id
+      JOIN "Product" pr ON v.product_id = pr.product_id
+      JOIN "Category" c ON pr.category_id = c.category_id
+      WHERE p.payment_status = 'Paid'
+      GROUP BY c.category_name
+      ORDER BY total_sold DESC;
+    `;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Category orders fetch error:", err.stack);
+    res.status(500).send("Server error while fetching category orders");
+  }
+});
+
 
 /**
  * @route   GET /api/admin/stats/top-products
@@ -339,19 +369,45 @@ router.get("/stats/netincome", async (req, res) => {
  */
 router.get("/stats/top-products", async (req, res) => {
   try {
+    const { period = "3_months" } = req.query;
+
+    let startDate = new Date();
+    switch (period) {
+      case "1_month":
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case "3_months":
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      case "6_months":
+        startDate.setMonth(startDate.getMonth() - 6);
+        break;
+      case "1_year":
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+      default:
+        startDate.setMonth(startDate.getMonth() - 3);
+    }
+
     const query = `
-      SELECT 
-        p.product_name,
-        SUM(oi.quantity) AS total_sold,
-        SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
-      FROM "OrderItem" oi
-      JOIN "Variant" v ON oi.variant_id = v.variant_id
-      JOIN "Product" p ON v.product_id = p.product_id
-      GROUP BY p.product_id, p.product_name
-      ORDER BY total_sold DESC
-      LIMIT 5;
+      SELECT
+  p.product_name,
+  SUM(oi.quantity) AS total_sold,
+  SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
+FROM "OrderItem" oi
+JOIN "Order" o ON oi.order_id = o.order_id
+JOIN "Payment" pay ON o.order_id = pay.order_id
+JOIN "Variant" v ON oi.variant_id = v.variant_id
+JOIN "Product" p ON v.product_id = p.product_id
+WHERE pay.payment_status = 'Paid'
+  AND o.order_date >= $1
+GROUP BY p.product_name
+ORDER BY total_sold DESC
+LIMIT 5;
+
     `;
-    const result = await pool.query(query);
+
+    const result = await pool.query(query, [startDate]);
     res.json(result.rows);
   } catch (err) {
     console.error("Top products fetch error:", err.stack);
@@ -359,12 +415,24 @@ router.get("/stats/top-products", async (req, res) => {
   }
 });
 
+
 /**
  * @route   GET /api/admin/stats/sales-performance
  * @desc    Get sales performance over time (daily sales in the past 30 days)
  */
 router.get("/stats/sales-performance", async (req, res) => {
   try {
+    const { quarter = "Q1", year = new Date().getFullYear() } = req.query;
+
+    let startMonth, endMonth;
+    switch (quarter) {
+      case "Q1": startMonth = 1; endMonth = 3; break;
+      case "Q2": startMonth = 4; endMonth = 6; break;
+      case "Q3": startMonth = 7; endMonth = 9; break;
+      case "Q4": startMonth = 10; endMonth = 12; break;
+      default: startMonth = 1; endMonth = 3;
+    }
+
     const query = `
       SELECT 
         DATE(o.order_date) AS date,
@@ -373,16 +441,20 @@ router.get("/stats/sales-performance", async (req, res) => {
       JOIN "OrderItem" oi ON o.order_id = oi.order_id
       JOIN "Payment" p ON o.order_id = p.order_id
       WHERE p.payment_status = 'Paid'
+        AND EXTRACT(MONTH FROM o.order_date) BETWEEN $1 AND $2
+        AND EXTRACT(YEAR FROM o.order_date) = $3
       GROUP BY DATE(o.order_date)
       ORDER BY DATE(o.order_date) ASC;
     `;
-    const result = await pool.query(query);
+
+    const result = await pool.query(query, [startMonth, endMonth, year]);
     res.json(result.rows);
   } catch (err) {
     console.error("Sales performance fetch error:", err.stack);
     res.status(500).send("Server error while fetching sales performance");
   }
 });
+
 
 /**
  * @route   GET /api/admin/stats/payment-methods

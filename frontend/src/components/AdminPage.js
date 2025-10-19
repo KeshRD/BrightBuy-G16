@@ -1,5 +1,5 @@
 // src/components/AdminPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Line, Doughnut } from "react-chartjs-2";
@@ -113,27 +113,24 @@ const linkStyle = (active) => ({
   borderRadius: "4px",
 });
 
-/* ===== Dashboard Component (Integrated) ===== */
+/* ===== Dashboard Component (Cleaned) ===== */
 const Dashboard = () => {
   const [netIncome, setNetIncome] = useState(0);
   const [topProducts, setTopProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState({});
+  const [selectedQuarter, setSelectedQuarter] = useState("Q1");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [topProductPeriod, setTopProductPeriod] = useState("3_months");
+  const [categoryOrders, setCategoryOrders] = useState([]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  /* ===== Fetch Dashboard Data ===== */
+  const fetchDashboardData = useCallback(async () => {
     try {
       const netRes = await axios.get("http://localhost:5000/api/admin/stats/netincome");
-      const topRes = await axios.get("http://localhost:5000/api/admin/stats/top-products");
-      const salesRes = await axios.get("http://localhost:5000/api/admin/stats/sales-performance");
       const paymentRes = await axios.get("http://localhost:5000/api/admin/stats/payment-methods");
 
       setNetIncome(netRes.data.net_income || 0);
-      setTopProducts(topRes.data || []);
-      setSalesData(salesRes.data || []);
 
       const paymentObj = {};
       paymentRes.data.forEach((method) => {
@@ -143,8 +140,65 @@ const Dashboard = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
+  /* ===== Fetch Sales Data ===== */
+  const fetchSalesData = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/stats/sales-performance", {
+        params: { quarter: selectedQuarter, year: selectedYear },
+      });
+      setSalesData(res.data || []);
+    } catch (err) {
+      console.error("Error fetching sales data:", err);
+    }
+  }, [selectedQuarter, selectedYear]);
+
+  /* ===== Fetch Top Products ===== */
+  const fetchTopProducts = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/stats/top-products", {
+        params: { period: topProductPeriod },
+      });
+      setTopProducts(res.data || []);
+    } catch (err) {
+      console.error("Error fetching top products:", err);
+    }
+  }, [topProductPeriod]);
+
+  /* ===== Fetch Category Orders ===== */
+  const fetchCategoryOrders = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/admin/stats/category-orders");
+      console.log("Category Orders Response:", res.data);
+      setCategoryOrders(res.data || []);
+      
+    } catch (err) {
+      console.error("Error fetching category orders:", err);
+    }
+  }, []);
+
+  /* ===== Initial Data Fetch ===== */
+  useEffect(() => {
+    fetchDashboardData();
+    fetchSalesData();
+    fetchTopProducts();
+    fetchCategoryOrders();
+  }, [fetchDashboardData, fetchSalesData, fetchTopProducts, fetchCategoryOrders]);
+
+  /* ===== Refetch Sales Data on Quarter / Year Change ===== */
+  useEffect(() => {
+    fetchSalesData();
+  }, [fetchSalesData]);
+
+  /* ===== Refetch Top Products on Period Change ===== */
+  useEffect(() => {
+    fetchTopProducts();
+  }, [fetchTopProducts]);
+
+  const handleTopProductPeriodChange = (e) => setTopProductPeriod(e.target.value);
+
+  /* ===== Chart Data ===== */
   const lineChartData = {
     labels: salesData.map((item) => item.date),
     datasets: [
@@ -188,16 +242,47 @@ const Dashboard = () => {
             {Object.keys(paymentMethods).length > 0 ? (
               <Doughnut
                 data={doughnutData}
-                options={{
-                  maintainAspectRatio: false,
-                  plugins: { legend: { position: "bottom" } },
-                }}
+                options={{ maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
               />
             ) : (
               <p>No payment data available.</p>
             )}
           </div>
         </div>
+      </div>
+
+      {/* ===== QUARTER + YEAR SELECTORS ===== */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+        <label>
+          Quarter:
+          <select
+            value={selectedQuarter}
+            onChange={(e) => setSelectedQuarter(e.target.value)}
+            style={dashboardStyles.dropdown}
+          >
+            <option value="Q1">Q1 (Jan - Mar)</option>
+            <option value="Q2">Q2 (Apr - Jun)</option>
+            <option value="Q3">Q3 (Jul - Sep)</option>
+            <option value="Q4">Q4 (Oct - Dec)</option>
+          </select>
+        </label>
+
+        <label>
+          Year:
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            style={dashboardStyles.dropdown}
+          >
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </label>
+
+        <button onClick={fetchSalesData} style={styles.refreshButton}>
+          Refresh
+        </button>
       </div>
 
       {/* ===== SALES PERFORMANCE ===== */}
@@ -208,7 +293,20 @@ const Dashboard = () => {
 
       {/* ===== TOP PRODUCTS ===== */}
       <div style={dashboardStyles.tableContainer}>
-        <h3>Top Selling Products</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <h3>Top Selling Products</h3>
+          <select
+            value={topProductPeriod}
+            onChange={handleTopProductPeriodChange}
+            style={dashboardStyles.dropdown}
+          >
+            <option value="1_month">Last Month</option>
+            <option value="3_months">Last 3 Months</option>
+            <option value="6_months">Last 6 Months</option>
+            <option value="1_year">Last Year</option>
+          </select>
+        </div>
+
         <table style={dashboardStyles.table}>
           <thead>
             <tr>
@@ -236,9 +334,41 @@ const Dashboard = () => {
           </tbody>
         </table>
       </div>
+
+      {/* ===== CATEGORY-WISE TOTAL ORDERS ===== */}
+<div style={{ ...dashboardStyles.tableContainer, marginTop: "30px" }}>
+  <h3>Category-wise Total Orders</h3>
+  <table style={dashboardStyles.table}>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Total Sold</th>
+        {/*<th>Total Revenue ($)</th>*/}
+      </tr>
+    </thead>
+    <tbody>
+      {categoryOrders.length > 0 ? (
+        categoryOrders.map((cat, i) => (
+          <tr key={i}>
+            <td>{cat.category}</td>
+            <td>{cat.total_sold}</td>
+            {/*<td>{cat.total_revenue}</td>*/}
+          </tr>
+        ))
+      ) : (
+        <tr>
+          <td colSpan="3">No category data available.</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
     </div>
   );
 };
+
+
 
 const dashboardStyles = {
   topRow: {
@@ -291,6 +421,16 @@ const dashboardStyles = {
     width: "100%",
     borderCollapse: "collapse",
   },
+  dropdown: {
+    marginLeft: "5px",
+    padding: "5px",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
+    background: "#111827",
+    color: "#fff",
+  },
+
+  
 };
 
 /* ===== Other Admin Components ===== */
@@ -298,6 +438,8 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
+  //const [topProductPeriod, setTopProductPeriod] = useState("3_months"); // default
+
 
   useEffect(() => {
     fetchData();
@@ -324,6 +466,8 @@ const Products = () => {
       console.error(err);
     }
   };
+
+
 
   return (
     <div>
