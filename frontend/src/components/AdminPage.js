@@ -38,7 +38,7 @@ const AdminPage = () => {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar */}
+
       <nav
         style={{
           width: "220px",
@@ -51,7 +51,7 @@ const AdminPage = () => {
           height: "100vh",
         }}
       >
-        {/* Top part: logo and tabs */}
+  
         <div>
           <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Admin Panel</h2>
           <ul style={{ listStyle: "none", padding: 0 }}>
@@ -76,7 +76,7 @@ const AdminPage = () => {
           </ul>
         </div>
 
-        {/* Bottom part: Logout */}
+      
         <div>
           <li
             style={{ ...linkStyle(false), background: "#B91C1C", marginTop: "20px" }}
@@ -87,7 +87,7 @@ const AdminPage = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
+
       <div style={{ flex: 1, padding: "20px", background: "#111827", color: "#fff" }}>
         {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "products" && <Products />}
@@ -300,7 +300,7 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   
-  // --- ADD useNavigate ---
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -308,7 +308,7 @@ const Products = () => {
   }, []);
 
   useEffect(() => {
-    // Filter whenever searchTerm changes
+
     setFilteredProducts(
       products.filter(
         (p) =>
@@ -329,16 +329,16 @@ const Products = () => {
     }
   };
   
-  // --- ALL MODAL/FORM LOGIC IS REMOVED ---
+
 
   return (
     <div>
       <h2>Products</h2>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", gap: "5px"}}>
 
-        {/* --- MODIFIED "ADD PRODUCT" BUTTON --- */}
+   
         <button
-          onClick={() => navigate('/admin/products/new')} // <-- This now navigates
+          onClick={() => navigate('/admin/products/new')}
           style={{
             padding: "6px 12px",
             border: "1px solid #ccc",
@@ -352,7 +352,7 @@ const Products = () => {
           Add Product
         </button>
 
-        {/* --- SEARCH BAR (UNCHANGED) --- */}
+       
         <div style={{ display: "flex", gap: "0px" }}>
           <input
             type="text"
