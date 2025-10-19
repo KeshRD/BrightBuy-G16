@@ -41,8 +41,14 @@ const Navbar = () => {
 
   return (
     <nav className="navbar">
-      <div className="navbar-brand" onClick={() => navigate('/home')}>
-        Bright Buy
+      <div style={{display:'flex', alignItems:'center', gap:24}}>
+        <div className="navbar-brand" onClick={() => navigate('/home')}>
+          Bright Buy
+        </div>
+        <div className="nav-links">
+          <Link to="/home" className="nav-link">Home</Link>
+          <Link to="/products" className="nav-link">Our Products</Link>
+        </div>
       </div>
       <div className="navbar-icons">
         <div className="navbar-icon cart-icon" onClick={() => navigate('/cart')}>
