@@ -159,11 +159,7 @@ const HomePage = ({ showProductsOnly }) => {
                         className="product-card"
                         onClick={() => openProduct(p.product_id)}
                       >
-                        <img
-                          src={p.image || ""}
-                          alt={p.product_name}
-                          className="product-card-image"
-                        />
+                        <img src={`http://localhost:5000${p.image}`} alt={p.product_name} className="product-card-image" />
                         <h3>{p.product_name}</h3>
 
                         {p.description && (

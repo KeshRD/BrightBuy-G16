@@ -112,6 +112,13 @@ CREATE TABLE "CartItem" (
   "quantity" INT CHECK ("quantity" > 0)
 );
 
+
+CREATE TABLE "Cities" (
+    city_id SERIAL PRIMARY KEY,
+    city_name VARCHAR(100) NOT NULL
+);
+
+
 -- ===========================================================
 --  TRIGGER FUNCTION: Add Sale Transaction when Payment is Paid
 -- ===========================================================
@@ -485,3 +492,27 @@ INSERT INTO "Supplier" (supplier_name, phone, email, address) VALUES
 ('Bose Corporation', '8005550808', 'support@bose.com', 'The Mountain, Framingham, MA 01701'),
 ('JBL Professional', '8005550909', 'contact@jbl.com', '8500 Balboa Blvd, Northridge, CA 91329'),
 ('Amazon Distribution', '8005551010', 'supply@amazon.com', '410 Terry Ave N, Seattle, WA 98109');
+
+
+
+INSERT INTO "Cities" (city_name) VALUES
+('Houston'),
+('San Antonio'),
+('Dallas'),
+('Austin'),
+('Fort Worth'),
+('El Paso'),
+('Arlington'),
+('Corpus Christi'),
+('Plano'),
+('Lubbock'),
+('Irving'),
+('Laredo'),
+('Garland'),
+('Amarillo'),
+('Grand Prairie'),
+('Brownsville'),
+('McKinney'),
+('Frisco'),
+('Pasadena'),
+('Killeen');
