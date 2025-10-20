@@ -877,4 +877,77 @@ WHERE p.payment_status = 'Paid';
 
 COMMIT;
 
+BEGIN;
+
+-- Smartphones
+UPDATE "Product" SET "description" = 'Apple’s flagship smartphone featuring the powerful A17 Pro chip, advanced camera system, and premium titanium design.' WHERE "SKU" = 'SKU_IP15PRO';
+UPDATE "Product" SET "description" = 'Samsung’s latest Galaxy S24 with a dynamic AMOLED 2X display, AI-enhanced photography, and Snapdragon 8 Gen 3 processor.' WHERE "SKU" = 'SKU_SGS24';
+UPDATE "Product" SET "description" = 'Google Pixel 8 powered by Google Tensor G3, offering cutting-edge AI features, exceptional camera performance, and 7 years of updates.' WHERE "SKU" = 'SKU_PIXEL8';
+
+-- Laptops
+UPDATE "Product" SET "description" = 'MacBook Air M3 delivers stunning performance with Apple Silicon, a lightweight design, and all-day battery life for everyday productivity.' WHERE "SKU" = 'SKU_MBA_M3';
+UPDATE "Product" SET "description" = 'Dell XPS 15 combines a sleek aluminum chassis, vibrant OLED display, and powerful Intel Core performance for creators and professionals.' WHERE "SKU" = 'SKU_XPS15';
+UPDATE "Product" SET "description" = 'HP Spectre x360 is a premium convertible laptop featuring 360° flexibility, vivid touchscreen, and long-lasting battery for versatile use.' WHERE "SKU" = 'SKU_SPECTRE360';
+
+-- Tablets
+UPDATE "Product" SET "description" = 'The iPad Pro 12.9” with Apple M2 chip offers desktop-class performance, Liquid Retina XDR display, and Apple Pencil 2 support for pros.' WHERE "SKU" = 'SKU_IPADPRO129';
+UPDATE "Product" SET "description" = 'Samsung Galaxy Tab S9 delivers a stunning AMOLED display, S Pen support, and flagship performance for work and entertainment on the go.' WHERE "SKU" = 'SKU_GALAXYTABS9';
+UPDATE "Product" SET "description" = 'Lenovo Tab P11 offers a sharp 2K display, quad speakers, and multitasking capabilities for productivity and family entertainment.' WHERE "SKU" = 'SKU_LENOVOP11';
+
+-- Smartwatches
+UPDATE "Product" SET "description" = 'Apple Watch Series 9 features a brighter display, faster chip, advanced health tracking, and seamless iPhone integration.' WHERE "SKU" = 'SKU_AW9';
+UPDATE "Product" SET "description" = 'Samsung Galaxy Watch 6 combines elegant design with advanced health monitoring and powerful fitness tracking on Wear OS.' WHERE "SKU" = 'SKU_GW6';
+
+-- Televisions
+UPDATE "Product" SET "description" = 'LG OLED C3 55” offers perfect blacks, stunning 4K HDR visuals, and cinematic sound powered by the α9 Gen6 AI Processor.' WHERE "SKU" = 'SKU_LGOLED55C3';
+UPDATE "Product" SET "description" = 'Samsung QLED Q80C 65” delivers bright Quantum HDR visuals, immersive sound, and Smart TV features with Tizen OS.' WHERE "SKU" = 'SKU_QLEDQ80C';
+UPDATE "Product" SET "description" = 'Sony Bravia XR A80L 55” brings lifelike OLED colors, XR Cognitive Processor intelligence, and Dolby Vision cinematic quality.' WHERE "SKU" = 'SKU_SONYXR55';
+
+-- Headphones
+UPDATE "Product" SET "description" = 'Sony WH-1000XM5 provides industry-leading noise cancellation, superior audio quality, and all-day comfort for travel and work.' WHERE "SKU" = 'SKU_SONYXM5';
+UPDATE "Product" SET "description" = 'Apple AirPods Pro (2nd Gen) feature personalized spatial audio, adaptive transparency, and best-in-class active noise cancellation.' WHERE "SKU" = 'SKU_AIRPODSPRO2';
+UPDATE "Product" SET "description" = 'Bose QuietComfort 45 combines balanced sound, adjustable noise cancellation, and plush comfort for immersive listening.' WHERE "SKU" = 'SKU_BOSEQC45';
+
+-- Speakers
+UPDATE "Product" SET "description" = 'JBL Charge 5 is a rugged, waterproof Bluetooth speaker delivering bold sound and up to 20 hours of playtime.' WHERE "SKU" = 'SKU_JBLCHG5';
+UPDATE "Product" SET "description" = 'Sonos One offers rich, room-filling sound with built-in Alexa and Google Assistant voice control.' WHERE "SKU" = 'SKU_SONOSONE';
+UPDATE "Product" SET "description" = 'Amazon Echo (5th Gen) is a smart speaker powered by Alexa, offering improved sound and smart home integration.' WHERE "SKU" = 'SKU_ECHO5';
+
+-- Cameras
+UPDATE "Product" SET "description" = 'Canon EOS R10 is a compact mirrorless camera with fast autofocus, 4K recording, and versatile APS-C performance for creators.' WHERE "SKU" = 'SKU_CANONR10';
+UPDATE "Product" SET "description" = 'Sony ZV-E10 is a vlogging-focused mirrorless camera offering real-time eye autofocus, 4K video, and flip-out display.' WHERE "SKU" = 'SKU_SONYZVE10';
+
+-- Gaming Consoles
+UPDATE "Product" SET "description" = 'PlayStation 5 delivers breathtaking 4K gaming, lightning-fast SSD performance, and immersive DualSense controller feedback.' WHERE "SKU" = 'SKU_PS5';
+UPDATE "Product" SET "description" = 'Xbox Series X offers next-gen gaming with true 4K performance, high-speed SSD, and access to Game Pass Ultimate.' WHERE "SKU" = 'SKU_XBSX';
+UPDATE "Product" SET "description" = 'Nintendo Switch OLED features a vibrant OLED screen, flexible docked/handheld modes, and fun multiplayer experiences.' WHERE "SKU" = 'SKU_NSWOLED';
+
+-- Monitors
+UPDATE "Product" SET "description" = 'ASUS ROG Swift 27” gaming monitor delivers ultra-smooth 165Hz refresh rate, 1ms response, and G-SYNC compatibility.' WHERE "SKU" = 'SKU_ROG27';
+UPDATE "Product" SET "description" = 'Dell Ultrasharp 32” provides professional-grade 4K clarity, accurate color reproduction, and modern connectivity options.' WHERE "SKU" = 'SKU_DELLU32';
+
+-- Printers
+UPDATE "Product" SET "description" = 'HP LaserJet Pro M404dn is a reliable monochrome laser printer with duplex printing and enterprise-level security features.' WHERE "SKU" = 'SKU_HPM404';
+UPDATE "Product" SET "description" = 'Canon PIXMA G3010 offers cost-efficient ink tank printing with wireless connectivity for home and small office use.' WHERE "SKU" = 'SKU_PIXMAG3010';
+
+-- Networking Devices
+UPDATE "Product" SET "description" = 'TP-Link Archer AX6000 is a high-performance WiFi 6 router offering ultra-fast dual-band speeds and advanced parental controls.' WHERE "SKU" = 'SKU_TPLINKAX6000';
+UPDATE "Product" SET "description" = 'Netgear Nighthawk AX12 delivers blazing WiFi 6 performance, 12-stream support, and extensive security for large households.' WHERE "SKU" = 'SKU_NGA12';
+
+-- Home Appliances
+UPDATE "Product" SET "description" = 'Dyson V15 Detect intelligently optimizes suction, detects hidden dust with laser illumination, and offers powerful cordless cleaning.' WHERE "SKU" = 'SKU_DYSONV15';
+UPDATE "Product" SET "description" = 'Philips Air Fryer XXL uses rapid air technology for healthier frying with less oil and smart preset cooking modes.' WHERE "SKU" = 'SKU_PHLPAFXL';
+UPDATE "Product" SET "description" = 'Instant Pot Duo 7-in-1 combines pressure cooking, slow cooking, steaming, and more into a single smart appliance.' WHERE "SKU" = 'SKU_IPDUO7';
+
+-- Computer Accessories
+UPDATE "Product" SET "description" = 'Logitech MX Master 3S features precision tracking, quiet clicks, and ergonomic design for seamless productivity.' WHERE "SKU" = 'SKU_MXM3S';
+UPDATE "Product" SET "description" = 'Corsair K70 RGB Keyboard offers mechanical switches, per-key RGB lighting, and premium aluminum frame for gamers.' WHERE "SKU" = 'SKU_K70RGB';
+UPDATE "Product" SET "description" = 'Razer DeathAdder V3 provides ultralight comfort, Focus Pro 30K optical sensor, and lightning-fast response for esports.' WHERE "SKU" = 'SKU_RAZERDAV3';
+
+-- Storage Devices
+UPDATE "Product" SET "description" = 'Samsung 970 EVO Plus 1TB NVMe SSD offers ultra-fast read/write speeds for gaming and high-performance computing.' WHERE "SKU" = 'SKU_970EVO1TB';
+UPDATE "Product" SET "description" = 'Seagate Backup Plus 2TB provides reliable external storage with USB 3.0 connectivity and sleek portable design.' WHERE "SKU" = 'SKU_SEAGATE2TB';
+UPDATE "Product" SET "description" = 'SanDisk Ultra 128GB USB 3.0 flash drive delivers fast file transfers and compact, durable storage on the go.' WHERE "SKU" = 'SKU_SANDISK128';
+
+COMMIT;
 
