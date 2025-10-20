@@ -611,7 +611,6 @@ const Orders = () => {
           "total_amount",
           "order_date",
           "delivery_id",
-          "delivery_status",
           "delivery_date"
         ]}
       />

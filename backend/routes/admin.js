@@ -147,13 +147,12 @@ router.get("/orders-with-delivery", async (req, res) => {
         SUM(oi.price_at_purchase * oi.quantity) AS total_amount,
         o.order_date,
         d.delivery_id,
-        d.delivery_status,
         d.estimated_delivery_date AS delivery_date
       FROM "Order" o
       JOIN "User" u ON o.user_id = u.user_id
       JOIN "OrderItem" oi ON o.order_id = oi.order_id
       LEFT JOIN "Delivery" d ON o.order_id = d.order_id
-      GROUP BY o.order_id, u.name, o.order_status, o.order_date, d.delivery_id, d.delivery_status, d.estimated_delivery_date
+      GROUP BY o.order_id, u.name, o.order_status, o.order_date, d.delivery_id, d.estimated_delivery_date
       ORDER BY o.order_id ASC
     `);
 

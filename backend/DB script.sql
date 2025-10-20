@@ -18,7 +18,7 @@ CREATE TABLE "Product" (
   "product_name" VARCHAR(100) NOT NULL,
   "SKU" VARCHAR(50) UNIQUE NOT NULL,
   "description" TEXT,
-  "image" VARCHAR(250)
+  "image" VARCHAR(255)
 );
 
 CREATE TABLE "Variant" (
@@ -112,13 +112,6 @@ CREATE TABLE "CartItem" (
   "quantity" INT CHECK ("quantity" > 0)
 );
 
-
-CREATE TABLE "Cities" (
-    city_id SERIAL PRIMARY KEY,
-    city_name VARCHAR(100) NOT NULL
-);
-
-
 -- ===========================================================
 --  TRIGGER FUNCTION: Add Sale Transaction when Payment is Paid
 -- ===========================================================
@@ -206,36 +199,6 @@ CREATE TRIGGER trg_update_variant_stock_on_transaction
 AFTER INSERT OR UPDATE OR DELETE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_variant_stock_on_transaction();
-
--- =============================================================================
---  TRIGGER FUNCTION: Populates the "SKU" column with a unique, generated ID
--- =============================================================================
-
-CREATE OR REPLACE FUNCTION set_unique_sku()
-RETURNS TRIGGER AS $$
-DECLARE
-  new_sku TEXT;
-  is_unique BOOLEAN := FALSE;
-BEGIN
-  WHILE NOT is_unique LOOP
-    new_sku := 'SKU_' || UPPER(
-      REPLACE(
-        REPLACE(
-          encode(gen_random_bytes(6), 'base64'),
-        '+', '_'),
-      '/', '-')
-    );
-    
-    PERFORM 1 FROM "Product" WHERE "SKU" = new_sku;
-    IF NOT FOUND THEN
-      is_unique := TRUE;
-    END IF;
-  END LOOP;
-  
-  NEW."SKU" := new_sku;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
 -- ===== CATEGORY =====
 INSERT INTO "Category" ("category_name") VALUES
@@ -493,9 +456,253 @@ INSERT INTO "Supplier" (supplier_name, phone, email, address) VALUES
 ('JBL Professional', '8005550909', 'contact@jbl.com', '8500 Balboa Blvd, Northridge, CA 91329'),
 ('Amazon Distribution', '8005551010', 'supply@amazon.com', '410 Terry Ave N, Seattle, WA 98109');
 
+-- ================================
+-- ORDERS
+-- ================================
+INSERT INTO "Order" ("user_id", "order_date", "mode_of_delivery", "payment_method", "delivery_address", "order_status", "estimated_delivery_date")
+VALUES
+-- Order 1 - Card Payment
+(1, '2025-10-10 10:15:00', 'Home Delivery', 'Card Payment', '123 Maple St, Dallas, TX', 'Delivered', '2025-10-14'),
+
+-- Order 2 - Cash on Delivery
+(3, '2025-10-11 14:45:00', 'Home Delivery', 'Cash on Delivery', '87 Pine Rd, Austin, TX', 'Shipped', '2025-10-18'),
+
+-- Order 3 - Card Payment
+(5, '2025-10-12 09:20:00', 'Store Pickup', 'Card Payment', 'BrightBuy Austin Store', 'Confirmed', '2025-10-15'),
+
+-- Order 4 - Cash on Delivery
+(7, '2025-10-13 16:10:00', 'Home Delivery', 'Cash on Delivery', '210 Elm St, Houston, TX', 'Pending', '2025-10-20'),
+
+-- Order 5 - Card Payment
+(9, '2025-10-14 11:00:00', 'Home Delivery', 'Card Payment', '77 Cedar Ln, San Antonio, TX', 'Delivered', '2025-10-18');
 
 
-INSERT INTO "Cities" (city_name) VALUES
+-- ================================
+-- ORDER ITEMS
+-- ================================
+INSERT INTO "OrderItem" ("order_id", "variant_id", "quantity", "price_at_purchase")
+VALUES
+-- Order 1
+(1, 1, 1, 1150.00), -- iPhone 15 Pro 128GB
+(1, 15, 1, 420.00), -- Sony WH-1000XM5
+-- Order 2
+(2, 25, 1, 380.00), -- Nintendo Switch OLED
+-- Order 3
+(3, 5, 1, 1750.00), -- Dell XPS 15
+(3, 36, 1, 95.00), -- Samsung 970 EVO Plus 1TB
+-- Order 4
+(4, 10, 1, 450.00), -- Apple Watch Series 9
+(4, 20, 2, 110.00), -- Amazon Echo
+-- Order 5
+(5, 4, 1, 1200.00), -- Samsung Galaxy S24
+(5, 40, 1, 65.00); -- Razer DeathAdder V3
+
+
+-- ================================
+-- PAYMENTS
+-- ================================
+INSERT INTO "Payment" ("order_id", "payment_method", "payment_status", "payment_date")
+VALUES
+-- Order 1 (Card Payment -> same day as order)
+(1, 'Card Payment', 'Paid', '2025-10-10 10:15:00'),
+-- Order 2 (Cash on Delivery -> pay on delivery date)
+(2, 'Cash on Delivery', 'Paid', '2025-10-18 14:45:00'),
+-- Order 3 (Card Payment)
+(3, 'Card Payment', 'Paid', '2025-10-12 09:20:00'),
+-- Order 4 (Cash on Delivery - Pending)
+(4, 'Cash on Delivery', 'Pending', NULL),
+-- Order 5 (Card Payment)
+(5, 'Card Payment', 'Paid', '2025-10-14 11:00:00');
+
+-- ================================================
+-- MANUAL SALE TRANSACTIONS (for already Paid orders)
+-- ================================================
+
+INSERT INTO "Transaction" (
+  "party_id", "party_type", "variant_id", "transaction_type", "quantity", "transaction_date"
+)
+SELECT 
+  o.user_id AS party_id,
+  'Customer' AS party_type,
+  oi.variant_id,
+  'Sale' AS transaction_type,
+  oi.quantity,
+  p.payment_date AS transaction_date
+FROM "Order" o
+JOIN "OrderItem" oi ON o.order_id = oi.order_id
+JOIN "Payment" p ON o.order_id = p.order_id
+WHERE o.order_id IN (1, 2, 3, 4, 5)
+  AND p.payment_status = 'Paid';
+
+-- ================================
+-- DELIVERY
+-- ================================
+
+INSERT INTO "Delivery" ("order_id", "user_id", "delivery_status", "estimated_delivery_date")
+SELECT
+  o.order_id,
+  CASE o.order_id
+    WHEN 1 THEN 2   -- Ethan Harris
+    WHEN 2 THEN 4   -- Mason Lee
+    WHEN 3 THEN 6   -- Liam Thompson
+    WHEN 4 THEN 8   -- Noah Wilson
+    WHEN 5 THEN 18  -- Daniel Allen
+  END AS user_id,
+  CASE
+    WHEN p.payment_status = 'Paid' AND o.estimated_delivery_date < CURRENT_DATE THEN 'Delivered'
+    WHEN p.payment_status = 'Paid' THEN 'In Transit'
+    ELSE 'Pending'
+  END AS delivery_status,
+  o.estimated_delivery_date
+FROM "Order" o
+JOIN "Payment" p ON o.order_id = p.order_id
+WHERE o.order_id IN (1,2,3,4,5)
+-- avoid duplicate deliveries if run multiple times
+AND NOT EXISTS (
+  SELECT 1 FROM "Delivery" d WHERE d.order_id = o.order_id
+);
+
+-- Step 1: Reassign deliveries from removed drivers
+UPDATE "Delivery"
+SET user_id = CASE user_id
+  WHEN 8 THEN 2
+  WHEN 18 THEN 4
+  ELSE user_id
+END
+WHERE user_id IN (8, 18);
+
+-- Step 2: Delete extra delivery drivers
+DELETE FROM "User"
+WHERE user_id IN (8, 18,29)
+  AND role = 'Delivery Driver';
+
+-- Update image URLs in the Product table
+
+UPDATE "Product" SET image = '/Assets/iphone-15-pro-gray.jpg' WHERE product_name = 'iPhone 15 Pro';
+UPDATE "Product" SET image = '/Assets/Samsung Galaxy S24.jpg' WHERE product_name = 'Samsung Galaxy S24';
+UPDATE "Product" SET image = '/Assets/Google Pixel 8.png' WHERE product_name = 'Google Pixel 8';
+UPDATE "Product" SET image = '/Assets/MacBook Air M3.png' WHERE product_name = 'MacBook Air M3';
+UPDATE "Product" SET image = '/Assets/Dell XPS 15.png' WHERE product_name = 'Dell XPS 15';
+UPDATE "Product" SET image = '/Assets/HP Spectre x360.jpg' WHERE product_name = 'HP Spectre x360';
+UPDATE "Product" SET image = '/Assets/iPad Pro 12.9.jpg' WHERE product_name = 'iPad Pro 12.9"';
+UPDATE "Product" SET image = '/Assets/Samsung Galaxy Tab S9.jpg' WHERE product_name = 'Samsung Galaxy Tab S9';
+UPDATE "Product" SET image = '/Assets/Lenovo Tab P11.jpg' WHERE product_name = 'Lenovo Tab P11';
+UPDATE "Product" SET image = '/Assets/Apple Watch Series 9.jpg' WHERE product_name = 'Apple Watch Series 9';
+UPDATE "Product" SET image = '/Assets/Samsung Galaxy Watch 6.jpg' WHERE product_name = 'Samsung Galaxy Watch 6';
+UPDATE "Product" SET image = '/Assets/LG OLED C3 55.jpg' WHERE product_name = 'LG OLED C3 55"';
+UPDATE "Product" SET image = '/Assets/Samsung QLED Q80C 65.jpg' WHERE product_name = 'Samsung QLED Q80C 65"';
+UPDATE "Product" SET image = '/Assets/Sony Bravia XR A80L 55.jpg' WHERE product_name = 'Sony Bravia XR A80L 55"';
+UPDATE "Product" SET image = '/Assets/Sony WH-1000XM5.jpg' WHERE product_name = 'Sony WH-1000XM5';
+UPDATE "Product" SET image = '/Assets/Apple AirPods Pro 2.jpg' WHERE product_name = 'Apple AirPods Pro 2';
+UPDATE "Product" SET image = '/Assets/Bose QC45.jpg' WHERE product_name = 'Bose QC45';
+UPDATE "Product" SET image = '/Assets/JBL Charge 5.jpg' WHERE product_name = 'JBL Charge 5';
+UPDATE "Product" SET image = '/Assets/Sonos One.jpg' WHERE product_name = 'Sonos One';
+UPDATE "Product" SET image = '/Assets/Amazon Echo (5th Gen).jpg' WHERE product_name = 'Amazon Echo (5th Gen)';
+UPDATE "Product" SET image = '/Assets/Canon EOS R10.jpg' WHERE product_name = 'Canon EOS R10';
+UPDATE "Product" SET image = '/Assets/Sony Alpha ZV-E10.jpg' WHERE product_name = 'Sony Alpha ZV-E10';
+UPDATE "Product" SET image = '/Assets/PlayStation 5.png' WHERE product_name = 'PlayStation 5';
+UPDATE "Product" SET image = '/Assets/Xbox Series X.jpg' WHERE product_name = 'Xbox Series X';
+UPDATE "Product" SET image = '/Assets/Nintendo Switch OLED.jpg' WHERE product_name = 'Nintendo Switch OLED';
+UPDATE "Product" SET image = '/Assets/ASUS ROG Swift 27.jpg' WHERE product_name = 'ASUS ROG Swift 27"';
+UPDATE "Product" SET image = '/Assets/Dell Ultrasharp 32.jpg' WHERE product_name = 'Dell Ultrasharp 32"';
+UPDATE "Product" SET image = '/Assets/HP LaserJet Pro M404dn.jpg' WHERE product_name = 'HP LaserJet Pro M404dn';
+UPDATE "Product" SET image = '/Assets/Canon PIXMA G3010.jpg' WHERE product_name = 'Canon PIXMA G3010';
+UPDATE "Product" SET image = '/Assets/TP-Link Archer AX6000.jpg' WHERE product_name = 'TP-Link Archer AX6000';
+UPDATE "Product" SET image = '/Assets/Netgear Nighthawk AX12.jpg' WHERE product_name = 'Netgear Nighthawk AX12';
+UPDATE "Product" SET image = '/Assets/Dyson V15 Vacuum.jpg' WHERE product_name = 'Dyson V15 Vacuum';
+UPDATE "Product" SET image = '/Assets/Philips Air Fryer XXL.jpg' WHERE product_name = 'Philips Air Fryer XXL';
+UPDATE "Product" SET image = '/Assets/Instant Pot Duo 7-in-1.jpg' WHERE product_name = 'Instant Pot Duo 7-in-1';
+UPDATE "Product" SET image = '/Assets/Logitech MX Master 3S.jpg' WHERE product_name = 'Logitech MX Master 3S';
+UPDATE "Product" SET image = '/Assets/Corsair K70 RGB Keyboard.jpg' WHERE product_name = 'Corsair K70 RGB Keyboard';
+UPDATE "Product" SET image = '/Assets/Samsung 970 EVO Plus 1TB.jpg' WHERE product_name = 'Samsung 970 EVO Plus 1TB';
+UPDATE "Product" SET image = '/Assets/Seagate Backup Plus 2TB.jpg' WHERE product_name = 'Seagate Backup Plus 2TB';
+UPDATE "Product" SET image = '/Assets/SanDisk Ultra 128GB.jpg' WHERE product_name = 'SanDisk Ultra 128GB';
+UPDATE "Product" SET image = '/Assets/Razer DeathAdder V3.jpg' WHERE product_name = 'Razer DeathAdder V3';
+
+-- changes added when updating the add products functionality in the admin section
+
+ALTER TABLE "Product" DROP CONSTRAINT IF EXISTS "Product_category_id_fkey";
+ALTER TABLE "Product"
+ADD CONSTRAINT "Product_category_id_fkey"
+FOREIGN KEY ("category_id")
+REFERENCES "Category"("category_id")
+ON DELETE CASCADE;
+
+ALTER TABLE "Product" DROP CONSTRAINT IF EXISTS "Product_SKU_key";
+ALTER TABLE "Product"
+ADD CONSTRAINT "Product_SKU_key" UNIQUE ("SKU");
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+
+CREATE UNIQUE INDEX product_name_unique_idx
+ON "Product" (UPPER("product_name"));
+
+
+CREATE OR REPLACE FUNCTION set_unique_sku()
+RETURNS TRIGGER AS $$
+DECLARE
+  new_sku TEXT;
+  is_unique BOOLEAN := FALSE;
+BEGIN
+  WHILE NOT is_unique LOOP
+    new_sku := 'SKU_' || UPPER(
+      REPLACE(
+        REPLACE(
+          encode(gen_random_bytes(6), 'base64'),
+        '+', '_'),
+      '/', '-')
+    );
+    
+    PERFORM 1 FROM "Product" WHERE "SKU" = new_sku;
+    IF NOT FOUND THEN
+      is_unique := TRUE;
+    END IF;
+  END LOOP;
+  
+  NEW."SKU" := new_sku;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER trigger_set_sku
+BEFORE INSERT ON "Product"
+FOR EACH ROW
+EXECUTE FUNCTION set_unique_sku();
+
+-- 1. Remove the delivery_status column from "Delivery"
+ALTER TABLE "Delivery"
+DROP COLUMN IF EXISTS delivery_status;
+
+-- 2. Modify order_status check to remove 'Cancelled'
+-- First, drop the existing constraint
+ALTER TABLE "Order"
+DROP CONSTRAINT IF EXISTS order_order_status_check;
+
+-- Then, create a new check constraint without 'Cancelled'
+ALTER TABLE "Order"
+ADD CONSTRAINT order_order_status_check
+CHECK (order_status IN ('Pending','Confirmed','Shipped','Delivered'));
+
+-- 3. Modify payment_status check to remove 'Failed'
+-- Drop the existing constraint
+ALTER TABLE "Payment"
+DROP CONSTRAINT IF EXISTS payment_payment_status_check;
+
+-- Add the new constraint without 'Failed'
+ALTER TABLE "Payment"
+ADD CONSTRAINT payment_payment_status_check
+CHECK (payment_status IN ('Pending','Paid'));
+
+-- Create table
+CREATE TABLE Cities (
+    city_id SERIAL PRIMARY KEY,
+    city_name VARCHAR(100) NOT NULL
+);
+
+-- Insert main cities of Texas
+INSERT INTO Cities (city_name) VALUES
 ('Houston'),
 ('San Antonio'),
 ('Dallas'),
@@ -516,3 +723,158 @@ INSERT INTO "Cities" (city_name) VALUES
 ('Frisco'),
 ('Pasadena'),
 ('Killeen');
+
+INSERT INTO "User" ("user_id", "name", "email", "password", "phone", "role")
+VALUES
+(8, 'John Doe', 'john8@example.com', 'hashedpassword_8', '7123945678', 'Registered Customer');
+-- SELECT setval(pg_get_serial_sequence('"User"', 'user_id'), (SELECT MAX("user_id") FROM "User"));
+-- This ensures that the next inserted user gets a user_id greater than the current max (so PostgreSQL won’t try to reuse 8).
+
+INSERT INTO "User" ("user_id", "name", "email", "password", "phone", "role")
+VALUES
+(18, 'Jane Smith', 'jane18@example.com', 'hashedpassword_18', '8723456789', 'Registered Customer');
+
+BEGIN;
+
+TRUNCATE "Transaction", "Delivery", "Payment", "OrderItem", "Order" RESTART IDENTITY CASCADE;
+
+BEGIN;
+
+BEGIN;
+
+INSERT INTO "Order" ("user_id","order_date","mode_of_delivery","payment_method","delivery_address","order_status","estimated_delivery_date") VALUES
+-- Q1 (Jan-Mar)
+(1,'2025-01-10 10:05:00','Home Delivery','Card Payment','123 Maple St, Austin, TX','Delivered','2025-01-14'),
+(5,'2025-01-26 15:30:00','Store Pickup','Cash on Delivery','BrightBuy Austin Store','Delivered','2025-01-26'),
+(3,'2025-02-12 09:10:00','Home Delivery','Card Payment','87 Pine Rd, Dallas, TX','Delivered','2025-02-15'),
+(7,'2025-03-03 18:45:00','Home Delivery','Card Payment','77 Cedar Ln, Houston, TX','Delivered','2025-03-07'),
+
+-- Q2 (Apr-Jun)
+(13,'2025-04-05 11:00:00','Home Delivery','Card Payment','14 Oak Ave, Plano, TX','Delivered','2025-04-09'),
+(5,'2025-04-12 14:20:00','Store Pickup','Cash on Delivery','BrightBuy Frisco','Delivered','2025-04-12'),
+(11,'2025-04-20 16:00:00','Home Delivery','Card Payment','55 Birch St, Irving, TX','Delivered','2025-04-24'),
+(9,'2025-05-07 16:15:00','Home Delivery','Cash on Delivery','400 Commerce St, Dallas, TX','Delivered','2025-05-11'),
+(12,'2025-05-28 09:40:00','Home Delivery','Card Payment','2 Lakeview Dr, Corpus Christi, TX','Delivered','2025-06-01'),
+(14,'2025-06-10 10:30:00','Store Pickup','Card Payment','BrightBuy Dallas','Delivered','2025-06-10'),
+
+-- Q3 (Jul-Sep)
+(14,'2025-07-02 12:00:00','Home Delivery','Card Payment','9 Sycamore St, Arlington, TX','Delivered','2025-07-06'),
+(8,'2025-07-18 10:10:00','Store Pickup','Cash on Delivery','BrightBuy San Antonio','Delivered','2025-07-18'),
+(10,'2025-08-04 15:45:00','Home Delivery','Card Payment','100 River Rd, Fort Worth, TX','Delivered','2025-08-08'),
+(13,'2025-08-25 09:00:00','Home Delivery','Card Payment','7 Prairie Ln, Lubbock, TX','Delivered','2025-08-29'),
+(15,'2025-09-05 11:30:00','Home Delivery','Card Payment','42 Harbor Rd, Galveston, TX','Delivered','2025-09-09'),
+
+-- Q4 (Oct-Dec)
+(16,'2025-10-03 09:00:00','Home Delivery','Card Payment','48 Walnut St, Dallas, TX','Pending','2025-10-08'),
+(17,'2025-10-07 13:15:00','Home Delivery','Card Payment','275 Broad St, Austin, TX','Pending','2025-10-12'),
+(18,'2025-10-11 18:40:00','Store Pickup','Cash on Delivery','BrightBuy ATX HQ','Pending','2025-10-12'),
+(19,'2025-10-14 11:25:00','Home Delivery','Card Payment','8 Magnolia Dr, Round Rock, TX','Pending','2025-10-18'),
+(20,'2025-10-18 16:50:00','Home Delivery','Cash on Delivery','3 North St, Killeen, TX','Pending','2025-10-23'),
+(21,'2025-11-02 10:10:00','Home Delivery','Card Payment','990 Commerce Blvd, Frisco, TX','Confirmed','2025-11-06'),
+(22,'2025-11-10 15:30:00','Home Delivery','Card Payment','210 Central Ave, Denton, TX','Shipped','2025-11-15'),
+(23,'2025-12-01 09:35:00','Home Delivery','Card Payment','42 Harbor Rd, Galveston, TX','Delivered','2025-12-05'),
+(24,'2025-12-08 13:00:00','Store Pickup','Cash on Delivery','BrightBuy Corpus Store','Delivered','2025-12-09'),
+(25,'2025-12-15 16:45:00','Home Delivery','Card Payment','Downtown, Austin, TX','Pending','2025-12-18'),
+(16,'2025-12-20 12:10:00','Home Delivery','Card Payment','Suburb, Dallas, TX','Pending','2025-12-25'),
+(7,'2025-12-22 09:30:00','Store Pickup','Cash on Delivery','BrightBuy North','Pending','2025-12-22'),
+(8,'2025-12-28 18:00:00','Home Delivery','Card Payment','Harbor St, Houston, TX','Pending','2026-01-02');
+
+COMMIT;
+
+BEGIN;
+
+INSERT INTO "OrderItem" ("order_id", "variant_id", "quantity", "price_at_purchase") VALUES
+-- Q1 (Smartphones, Laptops)
+(1, 1, 2, 1099.00),
+(1, 8, 1, 1449.00),
+(2, 12, 1, 1099.00),
+(3, 17, 3, 399.00),
+(4, 20, 1, 1499.00),
+
+-- Q2 (Headphones, Speakers, Cameras)
+(5, 25, 2, 399.00),
+(6, 29, 1, 179.00),
+(7, 32, 2, 979.00),
+(8, 35, 1, 499.00),
+(9, 40, 3, 599.00),
+(10, 42, 2, 299.00),
+
+-- Q3 (Networking, Home, Accessories, Storage)
+(11, 44, 1, 299.00),
+(12, 46, 2, 749.00),
+(13, 48, 1, 99.00),
+(14, 50, 2, 89.00),
+(15, 52, 1, 29.00),
+
+-- Q4 (Extra random categories)
+(16, 2, 2, 1199.00),
+(17, 9, 1, 1699.00),
+(18, 14, 3, 899.00),
+(19, 18, 1, 429.00),
+(20, 23, 2, 1599.00),
+(21, 28, 1, 329.00),
+(22, 30, 2, 219.00),
+(23, 34, 1, 699.00),
+(24, 37, 2, 499.00),
+(25, 41, 1, 999.00),
+(26, 43, 2, 249.00),
+(27, 45, 1, 399.00),
+(28, 47, 2, 349.00);
+
+COMMIT;
+
+INSERT INTO "Payment" ("order_id", "payment_method", "payment_status", "payment_date")
+SELECT
+  o.order_id,
+  o.payment_method,
+  CASE
+    WHEN o.payment_method = 'Card Payment' THEN 'Paid'
+    WHEN o.order_status = 'Delivered' THEN 'Paid'
+    ELSE 'Pending'
+  END,
+  CASE
+    WHEN o.payment_method = 'Card Payment' THEN o.order_date
+    WHEN o.order_status = 'Delivered' THEN o.estimated_delivery_date
+    ELSE NULL
+  END
+FROM "Order" o;
+
+COMMIT;
+
+BEGIN;
+
+INSERT INTO "Delivery" ("order_id", "user_id", "estimated_delivery_date")
+SELECT
+  o.order_id,
+  CASE
+    WHEN o.order_status = 'Pending' THEN NULL
+    ELSE
+      CASE (ROW_NUMBER() OVER (ORDER BY o.order_id) - 1) % 3
+        WHEN 0 THEN 2
+        WHEN 1 THEN 4
+        WHEN 2 THEN 6
+      END
+  END,
+  o.estimated_delivery_date
+FROM "Order" o;
+
+COMMIT;
+
+BEGIN;
+
+INSERT INTO "Transaction" ("party_id", "party_type", "variant_id", "transaction_type", "quantity", "transaction_date")
+SELECT
+  o.user_id,
+  'Customer',
+  oi.variant_id,
+  'Sale',
+  oi.quantity,
+  p.payment_date
+FROM "Order" o
+JOIN "Payment" p ON o.order_id = p.order_id
+JOIN "OrderItem" oi ON o.order_id = oi.order_id
+WHERE p.payment_status = 'Paid';
+
+COMMIT;
+
+
