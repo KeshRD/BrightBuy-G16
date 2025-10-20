@@ -283,6 +283,19 @@ app.post('/cart/update', authenticate, async (req, res) => {
   }
 });
 
+app.get('/cities', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT city_name FROM "Cities" ORDER BY city_name');
+    // Extract just the names into a simple array to send to the frontend
+    const cityNames = result.rows.map(row => row.city_name);
+    res.json(cityNames);
+  } catch (err) {
+    console.error('Cities fetch error:', err.stack);
+    res.status(500).json({ error: 'Failed to fetch cities' });
+  }
+});
+
+
 app.delete('/cart/remove/:cartItemId', authenticate, async (req, res) => {
   const { cartItemId } = req.params;
   try {

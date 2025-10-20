@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './payment.css';
 
-// Define main cities for delivery calculation
-const MAIN_CITIES = ['Houston', 'San Antonio', 'Dallas', 'Austin', 'Fort Worth'];
+// REMOVED: The hardcoded array is no longer needed.
+// const MAIN_CITIES = ['Houston', 'San Antonio', 'Dallas', 'Austin', 'Fort Worth'];
 
 const PaymentPage = () => {
     const location = useLocation();
@@ -28,24 +28,39 @@ const PaymentPage = () => {
     const [deliveryMethod, setDeliveryMethod] = useState('Standard');
     const [paymentMethod, setPaymentMethod] = useState('Card Payment');
     const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
+    const [mainCities, setMainCities] = useState([]); // State to hold cities from DB
 
     const [error, setError] = useState('');
     const [processing, setProcessing] = useState(false);
 
+    // New effect to fetch cities from the database when the component loads
+    useEffect(() => {
+        const fetchCities = async () => {
+            try {
+                const response = await axios.get('http://localhost:5000/cities');
+                setMainCities(response.data);
+            } catch (err) {
+                console.error("Failed to fetch main cities:", err);
+                // Fallback in case the API fails, though not ideal
+                setError("Could not load delivery city data.");
+            }
+        };
+        fetchCities();
+    }, []); // Empty dependency array ensures this runs only once on mount
+
     // Effect to calculate estimated delivery date
     useEffect(() => {
-
         if (deliveryMethod === 'Store Pickup') {
             setEstimatedDeliveryDate(null);
             return;
         }
 
-        if (shippingDetails.city && items.length > 0) {
+        // Now uses the dynamic 'mainCities' state
+        if (shippingDetails.city && items.length > 0 && mainCities.length > 0) {
             const calculateDeliveryDate = () => {
                 let deliveryDays = 0;
-                const isMainCity = MAIN_CITIES.map(c => c.toLowerCase()).includes(shippingDetails.city.toLowerCase());
+                const isMainCity = mainCities.map(c => c.toLowerCase()).includes(shippingDetails.city.toLowerCase());
                 
-                // Check if any item is out of stock (assuming stock_quantity is passed)
                 const isOutOfStock = items.some(item => item.stock_quantity === 0);
 
                 if (isMainCity) {
@@ -58,21 +73,19 @@ const PaymentPage = () => {
                     deliveryDays += 3;
                 }
                 
-
-                if (deliveryMethod === 'Store Pickup') {
+                if (deliveryMethod === 'Express') {
                     deliveryDays = Math.max(1, deliveryDays - 2);
                 }
 
                 const date = new Date();
                 date.setDate(date.getDate() + deliveryDays);
-                // Corrected: Use toISOString() for a universal date format
                 setEstimatedDeliveryDate(date.toISOString());
             };
             calculateDeliveryDate();
         } else {
             setEstimatedDeliveryDate(null);
         }
-    }, [shippingDetails.city, deliveryMethod, items]);
+    }, [shippingDetails.city, deliveryMethod, items, mainCities]);
 
     const handleInputChange = (e, setter) => {
         const { name, value } = e.target;

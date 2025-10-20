@@ -159,20 +159,11 @@ const HomePage = ({ showProductsOnly }) => {
                         className="product-card"
                         onClick={() => openProduct(p.product_id)}
                       >
-                        <img
-                          src={p.image || ""}
-                          alt={p.product_name}
-                          className="product-card-image"
-                        />
+                        <img src={`http://localhost:5000${p.image}`} alt={p.product_name} className="product-card-image" />
                         <h3>{p.product_name}</h3>
 
-                        {p.description && (
-                          <p style={{ color: "#a3a3a3", marginTop: 4 }}>
-                            {p.description.length > 80
-                              ? p.description.slice(0, 80) + "…"
-                              : p.description}
-                          </p>
-                        )}
+                        
+                        
 
                         <p style={{ marginTop: 6, fontWeight: 700 }}>
                           {m !== null ? `Starting at $${m.toFixed(2)}` : "See options"}

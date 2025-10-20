@@ -437,13 +437,13 @@ const dashboardStyles = {
 };
 
 /* ===== Other Admin Components ===== */
+
+
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
-  //const [topProductPeriod, setTopProductPeriod] = useState("3_months"); // default
-
-  
+  const [showLowStock, setShowLowStock] = useState(false); // NEW
 
   const navigate = useNavigate();
 
@@ -452,16 +452,22 @@ const Products = () => {
   }, []);
 
   useEffect(() => {
-
-    setFilteredProducts(
-      products.filter(
-        (p) =>
-          p.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.variant.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.category.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    let filtered = products.filter(
+      (p) =>
+        p.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.variant.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, products]);
+
+    // Apply low-stock filter if active
+    if (showLowStock) {
+      filtered = filtered
+        .filter((p) => p.stock_quantity < 5)
+        .sort((a, b) => a.stock_quantity - b.stock_quantity);
+    }
+
+    setFilteredProducts(filtered);
+  }, [searchTerm, products, showLowStock]);
 
   const fetchData = async () => {
     try {
@@ -472,23 +478,24 @@ const Products = () => {
       console.error(err);
     }
   };
-  
-
-
-
 
   return (
     <div>
       <h2>Products</h2>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", gap: "5px"}}>
 
-   
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "10px",
+          gap: "5px",
+        }}
+      >
         <button
-          onClick={() => navigate('/admin/products/new')}
+          onClick={() => navigate("/admin/products/new")}
           style={{
             padding: "6px 12px",
             border: "1px solid #ccc",
-            borderLeft: "none",
             borderRadius: "4px",
             background: "#10B981",
             color: "#fff",
@@ -498,13 +505,12 @@ const Products = () => {
           Add Product
         </button>
 
-       
         <div style={{ display: "flex", gap: "0px" }}>
           <input
             type="text"
             placeholder="Search products..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.g.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)} // fixed typo here too
             style={{
               padding: "6px 10px",
               borderRadius: "4px 0 0 4px",
@@ -513,7 +519,6 @@ const Products = () => {
             }}
           />
           <button
-            onClick={() => {}} 
             style={{
               padding: "6px 12px",
               border: "1px solid #ccc",
@@ -527,18 +532,38 @@ const Products = () => {
             Search
           </button>
         </div>
+
+        {/* ✅ New Low Stock Button */}
+        <button
+          onClick={() => setShowLowStock(!showLowStock)}
+          style={{
+            padding: "6px 12px",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            background: showLowStock ? "#EF4444" : "#F59E0B", // red = active
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          {showLowStock ? "Show All" : "Low Stock"}
+        </button>
       </div>
-      
+
       <Table
         data={filteredProducts}
-        columns={["variant_id", "product_name", "variant","category", "stock_quantity", "price"]}
+        columns={[
+          "variant_id",
+          "product_name",
+          "variant",
+          "category",
+          "stock_quantity",
+          "price",
+        ]}
       />
-
- 
-      
     </div>
   );
 };
+
 
 
 const Orders = () => {
@@ -611,7 +636,6 @@ const Orders = () => {
           "total_amount",
           "order_date",
           "delivery_id",
-          "delivery_status",
           "delivery_date"
         ]}
       />
