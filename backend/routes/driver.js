@@ -46,10 +46,9 @@ router.get('/deliveries', authenticateDriver, async (req, res) => {
     d.delivery_id,
     d.order_id,
       d.estimated_delivery_date AS arrival_date,
-      COALESCE(d.delivery_status, 'Unknown') AS delivery_status,
+      o.order_status AS status,
       d.user_id AS driver_id,
       du.name AS driver_name,
-      o.order_status AS order_status,
     o.delivery_address AS delivery_address,
     cu.name AS customer_name,
     pay.payment_method,
@@ -72,7 +71,7 @@ router.get('/deliveries', authenticateDriver, async (req, res) => {
   LEFT JOIN "OrderItem" oi ON o.order_id = oi.order_id
   LEFT JOIN "Variant" v ON oi.variant_id = v.variant_id
   LEFT JOIN "Product" prod ON v.product_id = prod.product_id
-  GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, d.delivery_status, d.user_id, du.name, o.order_status, cu.name, pay.payment_method, pay.payment_status, o.delivery_address
+  GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, o.order_status, d.user_id, du.name, cu.name, pay.payment_method, pay.payment_status, o.delivery_address
   ORDER BY d.estimated_delivery_date DESC NULLS LAST, d.delivery_id DESC;
 `;
 
@@ -88,8 +87,7 @@ router.get('/deliveries', authenticateDriver, async (req, res) => {
       arrival_date: r.arrival_date ? r.arrival_date.toISOString() : null,
       total_price: parseFloat(r.total_price) || 0,
       items: r.items || [],
-      delivery_status: r.delivery_status || 'Unknown',
-      order_status: r.order_status || null,
+      status: r.status || 'Pending',
       driver_id: r.driver_id || null,
       driver_name: r.driver_name || null,
       payment_status: r.payment_status || 'Pending'
@@ -105,7 +103,7 @@ router.get('/deliveries', authenticateDriver, async (req, res) => {
   }
 });
 
-// Claim a delivery: set to In Transit and assign current driver if it's Pending and unassigned
+// Claim a delivery: set order status to Confirmed and assign current driver if it's Pending and unassigned
 router.post('/deliveries/:id/claim', authenticateDriver, async (req, res) => {
   try {
     const deliveryId = parseInt(req.params.id, 10);
@@ -114,23 +112,27 @@ router.post('/deliveries/:id/claim', authenticateDriver, async (req, res) => {
     const driverId = req.user.userId;
 
     const claimRes = await pool.query(
-      'UPDATE "Delivery" SET user_id = $1, delivery_status = $2 WHERE delivery_id = $3 AND (delivery_status = $4 OR delivery_status IS NULL) AND user_id IS NULL RETURNING delivery_id',
-      [driverId, 'In Transit', deliveryId, 'Pending']
+      `UPDATE "Delivery" d SET user_id = $1 FROM "Order" o WHERE d.delivery_id = $2 AND d.user_id IS NULL AND o.order_id = d.order_id AND o.order_status = 'Pending' RETURNING d.delivery_id`,
+      [driverId, deliveryId]
     );
 
     if (claimRes.rowCount === 0) {
       return res.status(409).json({ error: 'Delivery already claimed or not pending' });
     }
 
+    await pool.query(
+      'UPDATE "Order" SET order_status = $1 WHERE order_id = (SELECT order_id FROM "Delivery" WHERE delivery_id = $2)',
+      ['Confirmed', deliveryId]
+    );
+
     const selectOneQuery = `
       SELECT
         d.delivery_id,
         d.order_id,
         d.estimated_delivery_date AS arrival_date,
-        COALESCE(d.delivery_status, 'Unknown') AS delivery_status,
+        o.order_status AS status,
         d.user_id AS driver_id,
         du.name AS driver_name,
-        o.order_status AS order_status,
         o.delivery_address AS delivery_address,
         cu.name AS customer_name,
         pay.payment_method,
@@ -154,7 +156,7 @@ router.post('/deliveries/:id/claim', authenticateDriver, async (req, res) => {
       LEFT JOIN "Variant" v ON oi.variant_id = v.variant_id
       LEFT JOIN "Product" prod ON v.product_id = prod.product_id
       WHERE d.delivery_id = $1
-      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, d.delivery_status, d.user_id, du.name, o.order_status, cu.name, pay.payment_method, pay.payment_status, o.delivery_address;
+      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, o.order_status, d.user_id, du.name, cu.name, pay.payment_method, pay.payment_status, o.delivery_address;
     `;
 
     const { rows } = await pool.query(selectOneQuery, [deliveryId]);
@@ -169,8 +171,7 @@ router.post('/deliveries/:id/claim', authenticateDriver, async (req, res) => {
       arrival_date: r.arrival_date ? r.arrival_date.toISOString() : null,
       total_price: parseFloat(r.total_price) || 0,
       items: r.items || [],
-      delivery_status: r.delivery_status || 'Unknown',
-      order_status: r.order_status || null,
+      status: r.status || 'Pending',
       driver_id: r.driver_id || null,
       driver_name: r.driver_name || null,
       payment_status: r.payment_status || 'Pending'
@@ -184,26 +185,42 @@ router.post('/deliveries/:id/claim', authenticateDriver, async (req, res) => {
   }
 });
 
-// Update delivery status from In Transit to Delivered/Failed by assigned driver only
+// Update order status: Confirmed -> Shipped, Shipped -> Delivered by assigned driver only
 router.patch('/deliveries/:id/status', authenticateDriver, async (req, res) => {
   try {
     const deliveryId = parseInt(req.params.id, 10);
     if (Number.isNaN(deliveryId)) return res.status(400).json({ error: 'Invalid delivery id' });
 
-    const { status } = req.body || {};
-    if (!['Delivered', 'Failed'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Must be Delivered or Failed.' });
-    }
-
     const driverId = req.user.userId;
 
+    // Get current order status
+    const currentStatusRes = await pool.query(
+      'SELECT o.order_status FROM "Order" o JOIN "Delivery" d ON o.order_id = d.order_id WHERE d.delivery_id = $1 AND d.user_id = $2',
+      [deliveryId, driverId]
+    );
+
+    if (currentStatusRes.rows.length === 0) {
+      return res.status(403).json({ error: 'Not allowed: You are not assigned to this delivery' });
+    }
+
+    const currentStatus = currentStatusRes.rows[0].order_status;
+    let newStatus;
+
+    if (currentStatus === 'Confirmed') {
+      newStatus = 'Shipped';
+    } else if (currentStatus === 'Shipped') {
+      newStatus = 'Delivered';
+    } else {
+      return res.status(400).json({ error: 'Invalid status transition' });
+    }
+
     const updRes = await pool.query(
-      'UPDATE "Delivery" SET delivery_status = $1 WHERE delivery_id = $2 AND delivery_status = $3 AND user_id = $4 RETURNING delivery_id',
-      [status, deliveryId, 'In Transit', driverId]
+      'UPDATE "Order" SET order_status = $1 WHERE order_id = (SELECT order_id FROM "Delivery" WHERE delivery_id = $2 AND user_id = $3)',
+      [newStatus, deliveryId, driverId]
     );
 
     if (updRes.rowCount === 0) {
-      return res.status(403).json({ error: 'Not allowed: You are not assigned to this delivery or it is not in transit' });
+      return res.status(403).json({ error: 'Not allowed: You are not assigned to this delivery' });
     }
 
     const selectOneQuery = `
@@ -211,10 +228,9 @@ router.patch('/deliveries/:id/status', authenticateDriver, async (req, res) => {
         d.delivery_id,
         d.order_id,
         d.estimated_delivery_date AS arrival_date,
-        COALESCE(d.delivery_status, 'Unknown') AS delivery_status,
+        o.order_status AS status,
         d.user_id AS driver_id,
         du.name AS driver_name,
-        o.order_status AS order_status,
         o.delivery_address AS delivery_address,
         cu.name AS customer_name,
         pay.payment_method,
@@ -238,7 +254,7 @@ router.patch('/deliveries/:id/status', authenticateDriver, async (req, res) => {
       LEFT JOIN "Variant" v ON oi.variant_id = v.variant_id
       LEFT JOIN "Product" prod ON v.product_id = prod.product_id
       WHERE d.delivery_id = $1
-      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, d.delivery_status, d.user_id, du.name, o.order_status, cu.name, pay.payment_method, pay.payment_status, o.delivery_address;
+      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, o.order_status, d.user_id, du.name, cu.name, pay.payment_method, pay.payment_status, o.delivery_address;
     `;
 
     const { rows } = await pool.query(selectOneQuery, [deliveryId]);
@@ -253,8 +269,7 @@ router.patch('/deliveries/:id/status', authenticateDriver, async (req, res) => {
       arrival_date: r.arrival_date ? r.arrival_date.toISOString() : null,
       total_price: parseFloat(r.total_price) || 0,
       items: r.items || [],
-      delivery_status: r.delivery_status || 'Unknown',
-      order_status: r.order_status || null,
+      status: r.status || 'Pending',
       driver_id: r.driver_id || null,
       driver_name: r.driver_name || null,
       payment_status: r.payment_status || 'Pending'
@@ -268,24 +283,32 @@ router.patch('/deliveries/:id/status', authenticateDriver, async (req, res) => {
   }
 });
 
-// Mark payment status as Paid for a delivery (assigned driver only)
+// Mark payment status as Paid for a delivery (assigned driver only, only if order is Delivered)
 router.patch('/deliveries/:id/payment-status', authenticateDriver, async (req, res) => {
   try {
     const deliveryId = parseInt(req.params.id, 10);
     if (Number.isNaN(deliveryId)) return res.status(400).json({ error: 'Invalid delivery id' });
 
-    // Ensure caller is the assigned driver
-    const dRes = await pool.query('SELECT user_id, order_id FROM "Delivery" WHERE delivery_id = $1', [deliveryId]);
+    const driverId = req.user.userId;
+
+    // Ensure caller is the assigned driver and order is Delivered
+    const dRes = await pool.query(
+      'SELECT d.user_id, d.order_id, o.order_status FROM "Delivery" d JOIN "Order" o ON d.order_id = o.order_id WHERE d.delivery_id = $1',
+      [deliveryId]
+    );
     if (dRes.rows.length === 0) return res.status(404).json({ error: 'Delivery not found' });
-    const { user_id: assignedDriverId, order_id } = dRes.rows[0];
-    if (!assignedDriverId || assignedDriverId !== req.user.userId) {
+    const { user_id: assignedDriverId, order_id, order_status } = dRes.rows[0];
+    if (!assignedDriverId || assignedDriverId !== driverId) {
       return res.status(403).json({ error: 'Not allowed: You are not assigned to this delivery' });
+    }
+    if (order_status !== 'Delivered') {
+      return res.status(400).json({ error: 'Payment can only be marked as Paid when order is Delivered' });
     }
 
     // Update payment to Paid
     const upd = await pool.query(
-      'UPDATE "Payment" p SET payment_status = $1, payment_date = NOW() FROM "Delivery" d WHERE d.delivery_id = $2 AND p.order_id = d.order_id RETURNING p.payment_id',
-      ['Paid', deliveryId]
+      'UPDATE "Payment" SET payment_status = $1, payment_date = NOW() WHERE order_id = $2 RETURNING payment_id',
+      ['Paid', order_id]
     );
 
     if (upd.rowCount === 0) {
@@ -298,10 +321,9 @@ router.patch('/deliveries/:id/payment-status', authenticateDriver, async (req, r
         d.delivery_id,
         d.order_id,
         d.estimated_delivery_date AS arrival_date,
-        COALESCE(d.delivery_status, 'Unknown') AS delivery_status,
+        o.order_status AS status,
         d.user_id AS driver_id,
         du.name AS driver_name,
-        o.order_status AS order_status,
         o.delivery_address AS delivery_address,
         cu.name AS customer_name,
         pay.payment_method,
@@ -325,7 +347,7 @@ router.patch('/deliveries/:id/payment-status', authenticateDriver, async (req, r
       LEFT JOIN "Variant" v ON oi.variant_id = v.variant_id
       LEFT JOIN "Product" prod ON v.product_id = prod.product_id
       WHERE d.delivery_id = $1
-      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, d.delivery_status, d.user_id, du.name, o.order_status, cu.name, pay.payment_method, pay.payment_status, o.delivery_address;
+      GROUP BY d.delivery_id, d.order_id, d.estimated_delivery_date, o.order_status, d.user_id, du.name, cu.name, pay.payment_method, pay.payment_status, o.delivery_address;
     `;
 
     const { rows } = await pool.query(selectOneQuery, [deliveryId]);
@@ -338,8 +360,7 @@ router.patch('/deliveries/:id/payment-status', authenticateDriver, async (req, r
       arrival_date: r.arrival_date ? r.arrival_date.toISOString() : null,
       total_price: parseFloat(r.total_price) || 0,
       items: r.items || [],
-      delivery_status: r.delivery_status || 'Unknown',
-      order_status: r.order_status || null,
+      status: r.status || 'Pending',
       driver_id: r.driver_id || null,
       driver_name: r.driver_name || null,
       payment_status: r.payment_status || 'Pending'

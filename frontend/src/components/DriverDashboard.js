@@ -49,13 +49,14 @@ const DriverDashboard = () => {
     fetchProfile();
   }, []);
 
-  // Order: Pending (0), In Transit (1), Delivered (2), Others (3)
-  const getStatus = (d) => (d.delivery_status && d.delivery_status !== 'Unknown' ? d.delivery_status : 'Pending');
-  const statusOrder = (s) => (s === 'Pending' ? 0 : s === 'In Transit' ? 1 : s === 'Delivered' ? 2 : 3);
+  // Order: Pending (0), Confirmed (1), Shipped (2), Delivered (3), Others (4)
+  const getStatus = (d) => (d.status && d.status !== 'Unknown' ? d.status : 'Pending');
+  const statusOrder = (s) => (s === 'Pending' ? 0 : s === 'Confirmed' ? 1 : s === 'Shipped' ? 2 : s === 'Delivered' ? 3 : 4);
   const filteredDeliveries = filter === 'mine' ? deliveries.filter(d => d.driver_id && myDriverId && d.driver_id === myDriverId) : deliveries;
   const sortedDeliveries = [...filteredDeliveries].sort((a, b) => statusOrder(getStatus(a)) - statusOrder(getStatus(b)));
 
   const handleClaim = async (delivery) => {
+    if (!window.confirm('Are you sure you want to claim this delivery?')) return;
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -70,12 +71,13 @@ const DriverDashboard = () => {
   };
 
   const handleTransitClick = (delivery) => {
-    if (delivery.driver_id && myDriverId && delivery.driver_id === myDriverId) {
-      setActiveDropdownId(delivery.delivery_id);
+    if (delivery.driver_id && myDriverId && delivery.driver_id === myDriverId && (delivery.status === 'Confirmed' || delivery.status === 'Shipped')) {
+      handleStatusUpdate(delivery);
     }
   };
 
   const markPaymentPaid = async (delivery) => {
+    if (!window.confirm('Are you sure you want to mark payment as Paid?')) return;
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -87,31 +89,35 @@ const DriverDashboard = () => {
     }
   };
 
-  const markDelivered = async (delivery) => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.patch(`${API_URL}/api/driver/deliveries/${delivery.delivery_id}/status`, { status: 'Delivered' }, { headers });
-      setDeliveries(prev => prev.map(x => x.delivery_id === delivery.delivery_id ? { ...x, ...res.data } : x));
-    } catch (err) {
-      console.error('Mark delivered failed', err.response || err.message || err);
-      alert(err.response?.data?.error || 'Failed to mark as Delivered');
-    }
-  };
+  const handleStatusUpdate = async (delivery) => {
+    const currentStatus = delivery.status;
+    let nextStatus;
+    let confirmMessage;
 
-  const handleStatusChange = async (delivery, newStatus) => {
-    if (!newStatus) return;
+    if (currentStatus === 'Confirmed') {
+      nextStatus = 'Shipped';
+      confirmMessage = 'Are you sure you want to mark this order as Shipped?';
+    } else if (currentStatus === 'Shipped') {
+      nextStatus = 'Delivered';
+      confirmMessage = 'Are you sure you want to mark this order as Delivered?';
+    } else {
+      return;
+    }
+
+    if (!window.confirm(confirmMessage)) return;
+
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.patch(`${API_URL}/api/driver/deliveries/${delivery.delivery_id}/status`, { status: newStatus }, { headers });
+      const res = await axios.patch(`${API_URL}/api/driver/deliveries/${delivery.delivery_id}/status`, {}, { headers });
       setDeliveries(prev => prev.map(x => x.delivery_id === delivery.delivery_id ? { ...x, ...res.data } : x));
-      setActiveDropdownId(null);
     } catch (err) {
       console.error('Status update failed', err.response || err.message || err);
       alert(err.response?.data?.error || 'Failed to update status');
     }
   };
+
+  // Removed handleStatusChange as it's replaced by handleStatusUpdate
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -230,216 +236,225 @@ const DriverDashboard = () => {
       {filteredDeliveries.length === 0 ? (
         <p>No delivery entries found.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#f4f4f4' }}>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Order ID</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Date of Arrival</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Items Ordered and Price</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Total Price</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Mode of Payment</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Payment Status</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Delivery Address</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Customer Name</th>
-              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Delivery Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedDeliveries.map((d, idx) => (
-              <>
-                {(() => {
-                  const curr = getStatus(d);
-                  const prev = idx > 0 ? getStatus(sortedDeliveries[idx - 1]) : null;
-                  return idx > 0 && statusOrder(curr) !== statusOrder(prev);
-                })() && (
-                  <tr>
-                    <td colSpan="9" style={{ border: 'none', height: '24px' }}></td>
-                  </tr>
-                )}
-                <tr>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.order_id}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                  {d.arrival_date ? new Date(d.arrival_date).toLocaleString() : 'N/A'}
-                </td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                  {Array.isArray(d.items) && d.items.length > 0 ? (
-                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                      {d.items.map((it, idx) => (
-                        <li key={idx}>
-                          {it.product_name} - {it.variant_name} x{it.quantity} @ ${it.price}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    'No items listed'
-                  )}
-                </td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>${d.total_price.toFixed(2)}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.payment_method || 'N/A'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                  {(() => {
-                    const isMine = d.driver_id && myDriverId && d.driver_id === myDriverId;
-                    const status = d.payment_status && d.payment_status !== 'Unknown' ? d.payment_status : (d.payment_method === 'Card Payment' ? 'Paid' : 'Pending');
-                    if (status === 'Pending') {
-                      if (isMine) {
-                        return (
-                          <span
-                            onClick={() => markPaymentPaid(d)}
-                            style={{
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              color: '#2196f3',
-                              backgroundColor: '#2196f3',
-                              color: '#fff',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              display: 'inline-block'
-                            }}
-                            title="Mark payment as Paid"
-                          >
-                            Pending
-                          </span>
-                        );
-                      }
-                      return (
-                        <span
-                          onClick={() => alert('Claim this delivery first to update payment status.')}
-                          style={{
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                            backgroundColor: '#9e9e9e',
-                            color: '#fff',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            display: 'inline-block'
-                          }}
-                          title="Claim this delivery to update payment"
-                        >
-                          Pending
-                        </span>
-                      );
-                    }
-                    return (
-                      <span
-                        style={{
-                          backgroundColor: '#4caf50',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          display: 'inline-block'
-                        }}
-                      >
-                        {status}
-                      </span>
-                    );
-                  })()}
-                </td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.delivery_address || 'N/A'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.customer_name}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                  {(() => {
-                    const status = d.delivery_status && d.delivery_status !== 'Unknown' ? d.delivery_status : 'Pending';
-                    const assigned = !!d.driver_id;
-                    const isMine = assigned && myDriverId && d.driver_id === myDriverId;
+        (() => {
+          // Group deliveries by status
+          const grouped = sortedDeliveries.reduce((acc, d) => {
+            const status = getStatus(d);
+            if (!acc[status]) acc[status] = [];
+            acc[status].push(d);
+            return acc;
+          }, {});
 
-                    if (status === 'Pending') {
-                      return (
-                        <>
-                          {!assigned ? (
-                            <button
-                              onClick={() => handleClaim(d)}
-                              style={{
-                                padding: '4px 8px',
-                                backgroundColor: '#ff9800',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: 600
-                              }}
-                              title="Click to claim this delivery"
-                            >
-                              Pending
-                            </button>
-                          ) : (
+          return Object.keys(grouped).sort((a, b) => statusOrder(a) - statusOrder(b)).map(status => (
+            <div key={status} style={{ marginBottom: '40px' }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '1.4em', color: '#333' }}>
+                {status === 'Pending' ? 'Pending Orders' :
+                 status === 'Confirmed' ? 'Confirmed Orders' :
+                 status === 'Shipped' ? 'Shipped Orders' :
+                 status === 'Delivered' ? 'Delivered Orders' : 'Other Orders'}
+              </h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f4f4f4' }}>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Order ID</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Date of Arrival</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Items Ordered and Price</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Total Price</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Mode of Payment</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Payment Status</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Delivery Address</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Customer Name</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Order Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grouped[status].map(d => (
+                    <tr key={d.delivery_id}>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.order_id}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                        {d.arrival_date ? new Date(d.arrival_date).toLocaleString() : 'N/A'}
+                      </td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                        {Array.isArray(d.items) && d.items.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                            {d.items.map((it, idx) => (
+                              <li key={idx}>
+                                {it.product_name} - {it.variant_name} x{it.quantity} @ ${it.price}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          'No items listed'
+                        )}
+                      </td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>${d.total_price.toFixed(2)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.payment_method || 'N/A'}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                        {(() => {
+                          const isMine = d.driver_id && myDriverId && d.driver_id === myDriverId;
+                          const paymentStatus = d.payment_status && d.payment_status !== 'Unknown' ? d.payment_status : (d.payment_method === 'Card Payment' ? 'Paid' : 'Pending');
+                          const orderStatus = d.status && d.status !== 'Unknown' ? d.status : 'Pending';
+                          if (orderStatus === 'Delivered' && paymentStatus === 'Pending') {
+                            if (isMine) {
+                              return (
+                                <span
+                                  onClick={() => markPaymentPaid(d)}
+                                  style={{
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    backgroundColor: '#2196f3',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    display: 'inline-block'
+                                  }}
+                                  title="Mark payment as Paid"
+                                >
+                                  Pending
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                onClick={() => alert("You can't change this.")}
+                                style={{
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  backgroundColor: '#9e9e9e',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  display: 'inline-block'
+                                }}
+                                title="You can't change this"
+                              >
+                                Pending
+                              </span>
+                            );
+                          }
+                          return (
                             <span
                               style={{
-                                fontWeight: 600,
-                                backgroundColor: '#ff9800',
+                                backgroundColor: paymentStatus === 'Paid' ? '#4caf50' : '#ff9800',
                                 color: '#fff',
                                 padding: '4px 8px',
                                 borderRadius: '4px',
                                 display: 'inline-block'
                               }}
                             >
-                              Pending
+                              {paymentStatus}
                             </span>
-                          )}
-                          {assigned && (
-                            <div style={{ marginTop: '6px', fontSize: '0.85em', color: '#555' }}>
-                              Driver: {d.driver_id} - {d.driver_name}
-                            </div>
-                          )}
-                        </>
-                      );
-                    }
+                          );
+                        })()}
+                      </td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.delivery_address || 'N/A'}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.customer_name}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                        {(() => {
+                          const status = d.status && d.status !== 'Unknown' ? d.status : 'Pending';
+                          const assigned = !!d.driver_id;
+                          const isMine = assigned && myDriverId && d.driver_id === myDriverId;
 
-                    if (status === 'In Transit') {
-                      return (
-                        <>
-                          <span
-                            onClick={() => isMine ? markDelivered(d) : alert('Claim this delivery first to update its status.')}
-                            style={{
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              fontWeight: 600,
-                              backgroundColor: '#2196f3',
-                              color: '#fff',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              display: 'inline-block'
-                            }}
-                            title={isMine ? 'Click to mark Delivered' : 'Claim this delivery to update'}
-                          >
-                            In Transit
-                          </span>
-                          {assigned && (
-                            <div style={{ marginTop: '6px', fontSize: '0.85em', color: '#555' }}>
-                              Driver: {d.driver_id} - {d.driver_name}
-                            </div>
-                          )}
-                        </>
-                      );
-                    }
+                          if (status === 'Pending') {
+                            return (
+                              <>
+                                {!assigned ? (
+                                  <button
+                                    onClick={() => handleClaim(d)}
+                                    style={{
+                                      padding: '4px 8px',
+                                      backgroundColor: '#ff9800',
+                                      color: '#fff',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontWeight: 600
+                                    }}
+                                    title="Click to claim this delivery"
+                                  >
+                                    Pending
+                                  </button>
+                                ) : (
+                                  <span
+                                    style={{
+                                      fontWeight: 600,
+                                      backgroundColor: '#ff9800',
+                                      color: '#fff',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      display: 'inline-block'
+                                    }}
+                                  >
+                                    Pending
+                                  </span>
+                                )}
+                                {assigned && (
+                                  <div style={{ marginTop: '6px', fontSize: '0.85em', color: '#555' }}>
+                                    Driver: {d.driver_id} - {d.driver_name}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          }
 
-                    return (
-                      <>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            backgroundColor: status === 'Delivered' ? '#4caf50' : '#f44336',
-                            color: '#fff',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            display: 'inline-block'
-                          }}
-                        >
-                          {status}
-                        </span>
-                        {assigned && (
-                          <div style={{ marginTop: '6px', fontSize: '0.85em', color: '#555' }}>
-                            Driver: {d.driver_id} - {d.driver_name}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </td>
-              </tr>
-            </>
-            ))}
-          </tbody>
-        </table>
+                          if (status === 'Confirmed' || status === 'Shipped') {
+                            return (
+                              <>
+                                <span
+                                  onClick={() => isMine ? handleStatusUpdate(d) : alert("You can't change this.")}
+                                  style={{
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    fontWeight: 600,
+                                    backgroundColor: '#2196f3',
+                                    color: '#fff',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    display: 'inline-block'
+                                  }}
+                                  title={isMine ? 'Click to update status' : "You can't change this"}
+                                >
+                                  {status}
+                                </span>
+                                {assigned && (
+                                  <div style={{ marginTop: '6px', fontSize: '0.85em', color: '#555' }}>
+                                    Driver: {d.driver_id} - {d.driver_name}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          }
+
+                          return (
+                            <>
+                              <span
+                                style={{
+                                  fontWeight: 600,
+                                  backgroundColor: status === 'Delivered' ? '#4caf50' : '#f44336',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  display: 'inline-block'
+                                }}
+                              >
+                                {status}
+                              </span>
+                              {assigned && (
+                                <div style={{ marginTop: '6px', fontSize: '0.85em', color: '#555' }}>
+                                  Driver: {d.driver_id} - {d.driver_name}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ));
+        })()
       )}
     </div>
   );

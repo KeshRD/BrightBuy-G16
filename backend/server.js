@@ -14,8 +14,25 @@ const uploadRoutes = require('./routes/upload');
 const app = express();
 
 /* ===== CORS (respect .env CORS_ORIGIN) ===== */
+// Allow multiple dev origins and respect CORS_ORIGIN env var (comma-separated)
+const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',')) || [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // allow requests with no origin (e.g. mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: Origin not allowed'));
+  },
   credentials: true,
 }));
 
@@ -47,6 +64,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
+});
+
+/* ===== Lightweight ping for debugging connectivity/CORS ===== */
+app.get('/ping', (req, res) => {
+  // echo back origin/header info useful for debugging CORS/network issues
+  res.json({ ok: true, origin: req.get('origin') || null, host: req.get('host') });
 });
 
 /* ===== Helpers ===== */
