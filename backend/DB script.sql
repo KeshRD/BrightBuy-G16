@@ -951,3 +951,12 @@ UPDATE "Product" SET "description" = 'SanDisk Ultra 128GB USB 3.0 flash drive de
 
 COMMIT;
 
+-- Update stock for Dell XPS 15
+UPDATE "Variant"
+SET stock_quantity = stock_quantity + 10
+WHERE variant_id = 10;
+
+-- Update stock for MacBook Air M3
+UPDATE "Variant"
+SET stock_quantity = stock_quantity + 5
+WHERE variant_id = 8;
