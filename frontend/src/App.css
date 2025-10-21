@@ -238,7 +238,7 @@ button:hover {
 .product-card-image {
   width: 100%;
   aspect-ratio: 4 / 5;
-  object-fit: cover;
+  object-fit: contain;
   display:block;
 }
 
@@ -270,7 +270,7 @@ button:hover {
 .cart-item-image {
   width: 80px;
   height: 80px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 4px;
   margin-right: 20px;
 }

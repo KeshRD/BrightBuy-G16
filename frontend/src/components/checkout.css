@@ -46,7 +46,7 @@
 .checkout-item-image {
     width: 60px;
     height: 60px;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 4px;
     margin: 0 15px;
 }
