@@ -90,32 +90,43 @@ const DriverDashboard = () => {
   };
 
   const handleStatusUpdate = async (delivery) => {
-    const currentStatus = delivery.status;
-    let nextStatus;
-    let confirmMessage;
+  const currentStatus = delivery.status;
+  let nextStatus;
+  let confirmMessage;
 
-    if (currentStatus === 'Confirmed') {
-      nextStatus = 'Shipped';
-      confirmMessage = 'Are you sure you want to mark this order as Shipped?';
-    } else if (currentStatus === 'Shipped') {
-      nextStatus = 'Delivered';
-      confirmMessage = 'Are you sure you want to mark this order as Delivered?';
-    } else {
-      return;
-    }
+  if (currentStatus === 'Confirmed') {
+    nextStatus = 'Shipped';
+    confirmMessage = 'Are you sure you want to mark this order as Shipped?';
+  } else if (currentStatus === 'Shipped') {
+    nextStatus = 'Delivered';
+    confirmMessage = 'Are you sure you want to mark this order as Delivered?';
+  } else {
+    return;
+  }
 
-    if (!window.confirm(confirmMessage)) return;
+  if (!window.confirm(confirmMessage)) return;
 
-    try {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.patch(`${API_URL}/api/driver/deliveries/${delivery.delivery_id}/status`, {}, { headers });
-      setDeliveries(prev => prev.map(x => x.delivery_id === delivery.delivery_id ? { ...x, ...res.data } : x));
-    } catch (err) {
-      console.error('Status update failed', err.response || err.message || err);
-      alert(err.response?.data?.error || 'Failed to update status');
-    }
-  };
+  try {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await axios.patch(
+      `${API_URL}/api/driver/deliveries/${delivery.delivery_id}/status`,
+      {},
+      { headers }
+    );
+    
+    alert(res.data.message); // ✅ moved here
+    setDeliveries(prev =>
+      prev.map(x =>
+        x.delivery_id === delivery.delivery_id ? { ...x, ...res.data } : x
+      )
+    );
+  } catch (err) {
+    console.error('Status update failed', err.response || err.message || err);
+    alert(err.response?.data?.error || 'Failed to update status');
+  }
+};
+
 
   // Removed handleStatusChange as it's replaced by handleStatusUpdate
 

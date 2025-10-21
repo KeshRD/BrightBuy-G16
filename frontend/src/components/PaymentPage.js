@@ -25,7 +25,7 @@ const PaymentPage = () => {
         name: ''
     });
     
-    const [deliveryMethod, setDeliveryMethod] = useState('Standard');
+    const [deliveryMethod, setDeliveryMethod] = useState('Home Delivery');
     const [paymentMethod, setPaymentMethod] = useState('Card Payment');
     const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
     const [mainCities, setMainCities] = useState([]); // State to hold cities from DB
@@ -181,7 +181,7 @@ const PaymentPage = () => {
                         
                         <h3>Delivery Method</h3>
                         <div className="form-options">
-                            <label><input type="radio" value="Standard" checked={deliveryMethod === 'Standard'} onChange={(e) => setDeliveryMethod(e.target.value)} /> Standard</label>
+                            <label><input type="radio" value="Home Delivery" checked={deliveryMethod === 'Home Delivery'} onChange={(e) => setDeliveryMethod(e.target.value)} /> Home Delivery</label>
                             <label><input type="radio" value="Store Pickup" checked={deliveryMethod === 'Store Pickup'} onChange={(e) => setDeliveryMethod(e.target.value)} /> Store Pickup</label>
                         </div>
 

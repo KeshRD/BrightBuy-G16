@@ -4,6 +4,8 @@ const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -13,6 +15,8 @@ const pool = new Pool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+
+const { sendOrderConfirmationEmail } = require('../utils/emailService');
 
 const authenticateDriver = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -183,6 +187,50 @@ router.post('/deliveries/:id/claim', authenticateDriver, async (req, res) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Server error while claiming delivery' });
   }
+
+  await pool.query(
+  'UPDATE "Order" SET order_status = $1 WHERE order_id = (SELECT order_id FROM "Delivery" WHERE delivery_id = $2)',
+  ['Confirmed', deliveryId]
+);
+
+// Claim successful -> send email before sending the response
+const emailData = await pool.query(`
+  SELECT u.email, o.order_id, o.delivery_address
+  FROM "Order" o
+  JOIN "User" u ON o.user_id = u.user_id
+  WHERE o.order_id = (SELECT order_id FROM "Delivery" WHERE delivery_id = $1)
+`, [deliveryId]);
+
+if (emailData.rows.length > 0) {
+  const { email, order_id, delivery_address } = emailData.rows[0];
+  const orderItemsRes = await pool.query(`
+    SELECT p.product_name, v.variant_name, oi.quantity, oi.price_at_purchase AS price
+    FROM "OrderItem" oi
+    JOIN "Variant" v ON oi.variant_id = v.variant_id
+    JOIN "Product" p ON v.product_id = p.product_id
+    WHERE oi.order_id = $1
+  `, [order_id]);
+
+  const total = orderItemsRes.rows.reduce(
+    (sum, i) => sum + parseFloat(i.price) * i.quantity,
+    0
+  );
+
+  await sendOrderConfirmationEmail(email, {
+    order_id,
+    items: orderItemsRes.rows,
+    total_price: total.toFixed(2),
+    delivery_address,
+  });
+}
+
+// now send a single response
+res.json({
+  status: 'Confirmed',
+  message: 'Order confirmed and confirmation email sent.',
+  ...processed
+});
+
 });
 
 // Update order status: Confirmed -> Shipped, Shipped -> Delivered by assigned driver only

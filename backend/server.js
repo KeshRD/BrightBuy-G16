@@ -11,6 +11,7 @@ const adminRoutes = require('./routes/admin');
 const driverRoutes = require('./routes/driver');
 const uploadRoutes = require('./routes/upload');
 
+
 const app = express();
 
 /* ===== CORS (respect .env CORS_ORIGIN) ===== */
@@ -389,7 +390,7 @@ app.post('/create-order', authenticate, async (req, res) => {
       order_date: newOrder.order_date,
       total_amount: total,
       shipping_address: deliveryAddress,
-      estimated_delivery_date,
+      estimatedDeliveryDate,
       items: items.map(i => ({ ...i })),
     };
 
