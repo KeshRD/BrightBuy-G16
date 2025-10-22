@@ -1,45 +1,292 @@
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+const norm = (s) =>
+  (s || "")
+    .toString()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const tokenize = (s) =>
+  norm(s)
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+/** Smarter scoring:
+ * - Big boost if CATEGORY matches the query ("moni" -> "Monitors")
+ * - Small boost for currentCategory only (so it won’t overpower query intent)
+ * - Strong for name word starts/ends with query
+ * - Penalty for incidental matches (e.g., head[phone]s when searching phone)
+ */
+const scoreProduct = (p, qTok, currentCategory) => {
+  if (!qTok) return 0;
+
+  const name = p.product_name || "";
+  const sku = p.SKU || p.sku || "";
+  const cat = p.category_name || "";
+  const nameToks = tokenize(name);
+  const catTok = norm(cat);
+  const skuTok = norm(sku);
+  const curCatTok = norm(currentCategory || "");
+
+  let s = 0;
+
+  const catMatchesQuery =
+    catTok.startsWith(qTok) || catTok.split(" ").some((w) => w.startsWith(qTok));
+
+  // 1) Category matching the query gets the HIGHEST boost
+  if (catMatchesQuery) s += 160;
+
+  // 2) Current category gets only a SMALL boost (so it won't override intent)
+  if (curCatTok && curCatTok === catTok) s += 15;
+
+  // 3) Name signals
+  const nameTokStarts = nameToks.some((w) => w.startsWith(qTok));
+  const nameTokEnds = nameToks.some((w) => w.endsWith(qTok));
+  if (nameTokStarts) s += 110;
+  if (nameTokEnds) s += 95;
+  if (norm(name).includes(qTok)) s += 35;
+
+  // 4) SKU / category contains
+  if (skuTok.startsWith(qTok)) s += 70;
+  if (!catMatchesQuery && catTok.includes(qTok)) s += 40;
+
+  // 5) Penalize incidental matches (inside long tokens, not start/end)
+  for (const w of nameToks) {
+    if (
+      w.includes(qTok) &&
+      !w.startsWith(qTok) &&
+      !w.endsWith(qTok) &&
+      w.length >= qTok.length + 2
+    ) {
+      s -= 40;
+    }
+  }
+
+  // small tie-breaker
+  s += Math.max(0, 12 - name.length * 0.2);
+
+  return s;
+};
+
+const Navbar = () => {
+>>>>>>> 95f186b127c474988d96e382c7a6586c8cbfb0db
+=======
+// src/components/Navbar.js
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import "./navbar.css";
 import homeIcon from "../assets/home.svg";
 import cartIcon from "../assets/cart.svg";
 import userIcon from "../assets/user.svg";
 
-const Navbar = ({ showSearch = true }) => {
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+const norm = (s) =>
+  (s || "")
+    .toString()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const tokenize = (s) =>
+  norm(s)
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+/** Smarter scoring:
+ * - Big boost if CATEGORY matches the query ("moni" -> "Monitors")
+ * - Small boost for currentCategory only (so it won’t overpower query intent)
+ * - Strong for name word starts/ends with query
+ * - Penalty for incidental matches (e.g., head[phone]s when searching phone)
+ */
+const scoreProduct = (p, qTok, currentCategory) => {
+  if (!qTok) return 0;
+
+  const name = p.product_name || "";
+  const sku = p.SKU || p.sku || "";
+  const cat = p.category_name || "";
+  const nameToks = tokenize(name);
+  const catTok = norm(cat);
+  const skuTok = norm(sku);
+  const curCatTok = norm(currentCategory || "");
+
+  let s = 0;
+
+  const catMatchesQuery =
+    catTok.startsWith(qTok) || catTok.split(" ").some((w) => w.startsWith(qTok));
+
+  // 1) Category matching the query gets the HIGHEST boost
+  if (catMatchesQuery) s += 160;
+
+  // 2) Current category gets only a SMALL boost (so it won't override intent)
+  if (curCatTok && curCatTok === catTok) s += 15;
+
+  // 3) Name signals
+  const nameTokStarts = nameToks.some((w) => w.startsWith(qTok));
+  const nameTokEnds = nameToks.some((w) => w.endsWith(qTok));
+  if (nameTokStarts) s += 110;
+  if (nameTokEnds) s += 95;
+  if (norm(name).includes(qTok)) s += 35;
+
+  // 4) SKU / category contains
+  if (skuTok.startsWith(qTok)) s += 70;
+  if (!catMatchesQuery && catTok.includes(qTok)) s += 40;
+
+  // 5) Penalize incidental matches (inside long tokens, not start/end)
+  for (const w of nameToks) {
+    if (
+      w.includes(qTok) &&
+      !w.startsWith(qTok) &&
+      !w.endsWith(qTok) &&
+      w.length >= qTok.length + 2
+    ) {
+      s -= 40;
+    }
+  }
+
+  // small tie-breaker
+  s += Math.max(0, 12 - name.length * 0.2);
+
+  return s;
+};
+
+const Navbar = () => {
+=======
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+const norm = (s) =>
+  (s || "")
+    .toString()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const tokenize = (s) =>
+  norm(s)
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+/** Smarter scoring:
+ * - Big boost if CATEGORY matches the query ("moni" -> "Monitors")
+ * - Small boost for currentCategory only (so it won’t overpower query intent)
+ * - Strong for name word starts/ends with query
+ * - Penalty for incidental matches (e.g., head[phone]s when searching phone)
+ */
+const scoreProduct = (p, qTok, currentCategory) => {
+  if (!qTok) return 0;
+
+  const name = p.product_name || "";
+  const sku = p.SKU || p.sku || "";
+  const cat = p.category_name || "";
+  const nameToks = tokenize(name);
+  const catTok = norm(cat);
+  const skuTok = norm(sku);
+  const curCatTok = norm(currentCategory || "");
+
+  let s = 0;
+
+  const catMatchesQuery =
+    catTok.startsWith(qTok) || catTok.split(" ").some((w) => w.startsWith(qTok));
+
+  // 1) Category matching the query gets the HIGHEST boost
+  if (catMatchesQuery) s += 160;
+
+  // 2) Current category gets only a SMALL boost (so it won't override intent)
+  if (curCatTok && curCatTok === catTok) s += 15;
+
+  // 3) Name signals
+  const nameTokStarts = nameToks.some((w) => w.startsWith(qTok));
+  const nameTokEnds = nameToks.some((w) => w.endsWith(qTok));
+  if (nameTokStarts) s += 110;
+  if (nameTokEnds) s += 95;
+  if (norm(name).includes(qTok)) s += 35;
+
+  // 4) SKU / category contains
+  if (skuTok.startsWith(qTok)) s += 70;
+  if (!catMatchesQuery && catTok.includes(qTok)) s += 40;
+
+  // 5) Penalize incidental matches (inside long tokens, not start/end)
+  for (const w of nameToks) {
+    if (
+      w.includes(qTok) &&
+      !w.startsWith(qTok) &&
+      !w.endsWith(qTok) &&
+      w.length >= qTok.length + 2
+    ) {
+      s -= 40;
+    }
+  }
+
+  // small tie-breaker
+  s += Math.max(0, 12 - name.length * 0.2);
+
+  return s;
+};
+
+const Navbar = () => {
+>>>>>>> 95f186b127c474988d96e382c7a6586c8cbfb0db
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);   // 👈 dropdown toggle
+  const [menuOpen, setMenuOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
   const menuRef = useRef(null);
 
-  // fetch suggestions
+  const params = new URLSearchParams(location.search);
+  const currentCategory = params.get("category") || "";
+
+  // Fetch + rank suggestions
   useEffect(() => {
-    if (!searchText.trim()) {
+    const raw = searchText.trim();
+    const qTok = norm(raw);
+    if (!qTok) {
       setSuggestions([]);
       return;
     }
+
     const t = setTimeout(async () => {
       try {
         const res = await axios.get(
-          `http://localhost:5000/products?search=${encodeURIComponent(searchText)}`
+          `${API_URL}/products?search=${encodeURIComponent(raw)}`
         );
-        setSuggestions(Array.isArray(res.data) ? res.data.slice(0, 6) : []);
-      } catch (err) {
-        console.error(err);
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [searchText]);
+        const list = Array.isArray(res.data) ? res.data : [];
 
-  // close menu if clicked outside
+        const ranked = list
+          .map((p) => ({ p, s: scoreProduct(p, qTok, currentCategory) }))
+          .filter((x) => x.s > 0)
+          .sort((a, b) => b.s - a.s)
+          .map((x) => x.p);
+
+        // de-dup + top 6
+        const seen = new Set();
+        const top = [];
+        for (const item of ranked) {
+          if (!seen.has(item.product_id)) {
+            seen.add(item.product_id);
+            top.push(item);
+          }
+          if (top.length >= 6) break;
+        }
+        setSuggestions(top);
+      } catch (e) {
+        console.error("suggestions error", e);
+      }
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [searchText, currentCategory]);
+
+  // close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -47,31 +294,36 @@ const Navbar = ({ showSearch = true }) => {
 
   // fetch cart count
   useEffect(() => {
-    const fetchCartItems = async () => {
+    const fetchCart = async () => {
       try {
         const token = localStorage.getItem("token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        if (!token) {
-          setCartItemCount(0);
-          return;
-        }
-        const response = await axios.get("http://localhost:5000/cart", { headers });
-        setCartItemCount(Array.isArray(response.data) ? response.data.length : 0);
-      } catch (error) {
-        console.error("Failed to fetch cart count", error.response?.data || error.message || error);
+        if (!token) return setCartItemCount(0);
+        const r = await axios.get(`${API_URL}/cart`, { headers });
+        setCartItemCount(Array.isArray(r.data) ? r.data.length : 0);
+      } catch (e) {
+        console.error("cart count error", e);
       }
     };
-
-    fetchCartItems();
-    const interval = setInterval(fetchCartItems, 5000);
-    return () => clearInterval(interval);
+    fetchCart();
+    const i = setInterval(fetchCart, 5000);
+    return () => clearInterval(i);
   }, []);
 
   const handleSearch = () => {
-    if (searchText.trim()) {
-      navigate(`/home?query=${encodeURIComponent(searchText)}`);
+    const q = searchText.trim();
+    if (q) {
+      navigate(
+        `/products?query=${encodeURIComponent(q)}${
+          currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ""
+        }`
+      );
       setShowSuggestions(false);
     }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleSearch();
   };
 
   const handleLogout = () => {
@@ -91,6 +343,7 @@ const Navbar = ({ showSearch = true }) => {
         <div />
 
         <div className="navbar-right">
+<<<<<<< HEAD
           {showSearch && (
             <div className="navbar-search">
               <div className="search-wrap">
@@ -118,6 +371,38 @@ const Navbar = ({ showSearch = true }) => {
                   </ul>
                 )}
               </div>
+=======
+          <div className="navbar-search">
+            <div className="search-wrap">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                onKeyDown={handleKeyDown}
+              />
+              <button className="search-btn" onClick={handleSearch}>
+                Search
+              </button>
+
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="search-suggestions">
+                  {suggestions.map((p) => (
+                    <li
+                      key={p.product_id}
+                      className="suggestion-item"
+                      onClick={() => navigate(`/product/${p.product_id}`)}
+                    >
+                      <div className="s-title">{p.product_name}</div>
+                      <div className="s-meta">
+                        {(p.category_name || "—")} • SKU_{p.SKU}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+>>>>>>> 95f186b127c474988d96e382c7a6586c8cbfb0db
             </div>
           )}
 
@@ -132,6 +417,15 @@ const Navbar = ({ showSearch = true }) => {
               <img src={homeIcon} alt="Home" />
             </button>
 
+                  <button onClick={() => { setMenuOpen(false); navigate("/profile"); }}>
+                    Profile
+                  </button>
+                  <button className="logout-btn" onClick={handleLogout}>Logout</button>
+>>>>>>> 95f186b127c474988d96e382c7a6586c8cbfb0db
+                </div>
+              )}
+            </div>
+=======
             <button className="navbar-icon" onClick={() => {
               if (!localStorage.getItem("token")) {
                 alert("Sign up/Log in to enjoy the full benefits of our service");
@@ -143,15 +437,10 @@ const Navbar = ({ showSearch = true }) => {
               {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
             </button>
 
-            {/* 👇 User dropdown */}
             <div className="user-dropdown" ref={menuRef}>
-              <button
-                className="navbar-icon"
-                onClick={() => setMenuOpen((v) => !v)}
-              >
+              <button className="navbar-icon" onClick={() => setMenuOpen((v) => !v)}>
                 <img src={userIcon} alt="User" />
               </button>
-
               {menuOpen && (
                 <div className="user-dropdown-panel">
                   {localStorage.getItem("token") ? (
@@ -171,7 +460,15 @@ const Navbar = ({ showSearch = true }) => {
                 </div>
               )}
             </div>
-            {/* 👆 End dropdown */}
+=======
+                  <button onClick={() => { setMenuOpen(false); navigate("/profile"); }}>
+                    Profile
+                  </button>
+                  <button className="logout-btn" onClick={handleLogout}>Logout</button>
+>>>>>>> 95f186b127c474988d96e382c7a6586c8cbfb0db
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
