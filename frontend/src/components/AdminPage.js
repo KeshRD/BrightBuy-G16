@@ -472,14 +472,23 @@ const Products = () => {
   }, [searchTerm, products, showLowStock]);
 
   const fetchData = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/admin/products");
-      setProducts(res.data);
-      setFilteredProducts(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  try {
+    const res = await axios.get("http://localhost:5000/api/admin/products");
+
+    // ✅ Rename fields so the table can display them correctly
+    const formatted = res.data.map((item) => ({
+      ...item,
+      variant: item.variant_name,
+      category: item.category_name,
+    }));
+
+    setProducts(formatted);
+    setFilteredProducts(formatted);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   return (
     <div>
