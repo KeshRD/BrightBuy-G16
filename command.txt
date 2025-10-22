@@ -1,0 +1,8 @@
+### Start services
+```bash
+docker-compose up
+```
+
+
+# All services
+docker-compose logs -f

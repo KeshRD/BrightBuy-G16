@@ -151,7 +151,13 @@ const Navbar = () => {
         const r = await axios.get(`${API_URL}/cart`, { headers });
         setCartItemCount(Array.isArray(r.data) ? r.data.length : 0);
       } catch (e) {
-        console.error("cart count error", e);
+        // If token is invalid (403), clear it and stop requesting
+        if (e.response && e.response.status === 403) {
+          localStorage.removeItem("token");
+          setCartItemCount(0);
+        } else {
+          console.error("cart count error", e);
+        }
       }
     };
     fetchCart();

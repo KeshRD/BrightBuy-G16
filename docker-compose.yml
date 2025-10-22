@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:16-alpine
+    container_name: brightbuy-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-brightbuy}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/DB script.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/procedures.sql:/docker-entrypoint-initdb.d/02-procedures.sql
+      - ./backend/views.sql:/docker-entrypoint-initdb.d/03-views.sql
+      - ./backend/Triggers.sql:/docker-entrypoint-initdb.d/04-triggers.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brightbuy-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: brightbuy-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${BACKEND_PORT:-5000}
+      DB_USER: ${DB_USER:-postgres}
+      DB_HOST: database
+      DB_NAME: ${DB_NAME:-brightbuy}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_PORT: 5432
+      JWT_SECRET: ${JWT_SECRET:-your-secret-jwt-key-change-this}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - ./backend/Assets:/app/Assets
+    ports:
+      - "5000:5000"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - brightbuy-network
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: brightbuy-frontend
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend
+    networks:
+      - brightbuy-network
+
+# Named volumes
+volumes:
+  postgres_data:
+    driver: local
+
+# Networks
+networks:
+  brightbuy-network:
+    driver: bridge
