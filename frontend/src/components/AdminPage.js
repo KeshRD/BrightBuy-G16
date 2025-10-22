@@ -974,6 +974,7 @@ const Customers = () => {
       alert("Failed to update supplier role.");
     }
   };
+  
 
   return (
     <div>
