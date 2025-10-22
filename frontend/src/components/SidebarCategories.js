@@ -3,21 +3,24 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./sidebar.css";
 
-export default function SidebarCategories({ categories }) {
+export default function SidebarCategories({ categories = [] }) {
   const navigate = useNavigate();
-  const { search } = useLocation();
-  const params = new URLSearchParams(search);
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
   const activeCategory = params.get("category") || "All";
 
-  // Navigate to /home?category=...
+  // Handle click on each category
   const handleClick = (category) => {
-    const newParams = new URLSearchParams(search);
+    const newParams = new URLSearchParams(location.search);
     if (!category || category === "All") {
       newParams.delete("category");
     } else {
       newParams.set("category", category);
     }
-    navigate(`/home?${newParams.toString()}`);
+
+    // ✅ Navigate to /products page, not /home
+    const queryString = newParams.toString();
+    navigate(`/products${queryString ? `?${queryString}` : ""}`);
   };
 
   return (
@@ -32,6 +35,7 @@ export default function SidebarCategories({ categories }) {
         All
       </button>
 
+      {/* Dynamic category list */}
       <div className="bb-cat-list">
         {categories.map((cat) => (
           <button
