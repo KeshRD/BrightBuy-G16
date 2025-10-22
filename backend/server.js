@@ -10,6 +10,8 @@ require('dotenv').config();
 const adminRoutes = require('./routes/admin');
 const driverRoutes = require('./routes/driver');
 const uploadRoutes = require('./routes/upload');
+const customerOrderReportRoutes = require('./routes/customerorderreport');
+const upcomingDeliveriesRoutes = require('./routes/Upcomingdelivers');
 
 
 const app = express();
@@ -48,6 +50,8 @@ app.use('/Assets', express.static(path.join(__dirname, 'Assets')));
 app.use('/api/admin', adminRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/admin/upload', uploadRoutes);
+app.use('/api/reports', customerOrderReportRoutes);
+app.use('/api/orders', upcomingDeliveriesRoutes);
 
 /* ===== DB Pool ===== */
 const pool = new Pool({

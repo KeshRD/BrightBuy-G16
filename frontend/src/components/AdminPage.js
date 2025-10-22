@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Line, Doughnut } from "react-chartjs-2";
+import UpcomingDeliveries from "../components/UpcomingDeliveries";
+import CustomerOrderReport from "../components/CustomerOrderReport";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -883,22 +885,40 @@ const Transactions = () => {
 
 
 const Reports = () => {
-  const [reports, setReports] = useState([]);
-  useEffect(() => {
-    fetchData();
-  }, []);
-  const fetchData = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/admin/reports");
-      setReports(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const [showUpcoming, setShowUpcoming] = useState(false);
+
   return (
-    <div>
-      <h2>Reports</h2>
-      <Table data={reports} columns={["report_id", "title", "generated_on"]} />
+    <div className="bg-white min-h-screen p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
+        � Reports Dashboard
+      </h2>
+      
+      <div className="flex gap-4 mb-6 justify-center">
+        <button
+          onClick={() => setShowUpcoming(false)}
+          className={`px-6 py-3 rounded-lg transition-all duration-200 ${
+            !showUpcoming
+              ? "bg-blue-600 text-white shadow-lg transform scale-105"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Customer Order Summary 📋
+        </button>
+        <button
+          onClick={() => setShowUpcoming(true)}
+          className={`px-6 py-3 rounded-lg transition-all duration-200 ${
+            showUpcoming
+              ? "bg-blue-600 text-white shadow-lg transform scale-105"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Upcoming Deliveries 🚚
+        </button>
+      </div>
+
+      <div className="bg-gray-50 rounded-lg shadow-sm p-6">
+        {!showUpcoming ? <CustomerOrderReport /> : <UpcomingDeliveries />}
+      </div>
     </div>
   );
 };
