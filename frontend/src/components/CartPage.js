@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import './CartPage.css';
 
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -86,10 +87,10 @@ const CartPage = () => {
   }, 0);
 
   return (
-    <div className="App-header">
+    <div className="cart-page">
       <div className="page-header">
+        <h2>My Cart</h2>
         <button onClick={() => navigate('/home')}>Continue Shopping</button>
-        <h2>Your Cart</h2>
       </div>
       {error && <p className="error">{error}</p>}
       {cartItems.length === 0 ? (
@@ -97,38 +98,53 @@ const CartPage = () => {
           <p>Your cart is empty.</p>
         </div>
       ) : (
-        <>
+        <div className="cart-content">
           <ul className="cart-list">
             {cartItems.map((item) => (
-              <li key={item.cart_item_id}>
+              <li key={item.cart_item_id} className="cart-item">
                 <img
-              src={`http://localhost:5000${item.image}`}
-              alt={item.product_name}
-              className="product-card-image"
-            />
-               
+                  src={`http://localhost:5000${item.image}`}
+                  alt={item.product_name}
+                />
                 <div className="cart-item-details">
                   <h3>{item.product_name} - {item.variant_name}</h3>
                   <p>Price: ${parseFloat(item.price).toFixed(2)}</p>
                   <div className="quantity-controls">
-                    <button className="quantity-btn" onClick={() => handleQuantityChange(item, item.quantity - 1)} disabled={item.quantity <= 1}>-</button>
+                    <button
+                      className="quantity-btn"
+                      onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                      disabled={item.quantity <= 1}
+                    >
+                      -
+                    </button>
                     <span>{item.quantity}</span>
-                    <button className="quantity-btn" onClick={() => handleQuantityChange(item, item.quantity + 1)}>+</button>
+                    <button
+                      className="quantity-btn"
+                      onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
                 <div className="cart-item-actions">
                   <p>Subtotal: ${(item.quantity * parseFloat(item.price)).toFixed(2)}</p>
-                  <button className="remove-btn" onClick={() => handleRemoveItem(item.cart_item_id)}>Remove</button>
-          
+                  <button
+                    className="remove-btn"
+                    onClick={() => handleRemoveItem(item.cart_item_id)}
+                  >
+                    Remove
+                  </button>
                 </div>
               </li>
             ))}
           </ul>
           <div className="cart-summary">
             <h3>Total: ${total.toFixed(2)}</h3>
-            <button className="checkout-btn" onClick={() => navigate('/checkout')}>Proceed to Checkout</button>
+            <button className="checkout-btn" onClick={() => navigate('/checkout')}>
+              Proceed to Checkout
+            </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

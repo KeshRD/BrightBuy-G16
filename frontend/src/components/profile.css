@@ -45,8 +45,8 @@
   width: min(980px, 100%);
   background: var(--card);
   display: grid;
-  grid-template-columns: 120px 1fr;
-  align-items: center;
+  grid-template-columns: 120px auto 1fr;
+  align-items: start;
   gap: 20px;
   padding: 24px;
 }
