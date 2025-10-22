@@ -118,3 +118,4 @@ CREATE TRIGGER trigger_set_sku
 BEFORE INSERT ON "Product"
 FOR EACH ROW
 EXECUTE FUNCTION set_unique_sku();
+
