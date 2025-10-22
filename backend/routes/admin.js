@@ -18,20 +18,14 @@ const pool = new Pool({
 /* ===== Products ===== */
 router.get("/products", async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT p.product_id, p.product_name, v.variant_id, v.variant_name as variant, c.category_name AS category, 
-             v.stock_quantity, v.price
-      FROM "Product" p
-      JOIN "Category" c ON p.category_id = c.category_id
-      LEFT JOIN "Variant" v ON p.product_id = v.product_id
-      ORDER BY p.product_id, v.variant_id ASC
-    `);
+    const result = await pool.query('SELECT * FROM vw_product_details');
     res.json(result.rows);
   } catch (err) {
     console.error("Products fetch error:", err.stack);
     res.status(500).send("Server error");
   }
 });
+
 
 /**
  * @route   GET /api/admin/categories
@@ -51,115 +45,94 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// backend/routes/admin.js
-// ... (keep all your imports and other routes) ...
 
 /**
  * @route   POST /api/admin/products
- * @desc    Add a new product (with its first variant)
+ * @desc    Add a new product (with its first variant) using DB procedure
  */
 router.post("/products", async (req, res) => {
-  // --- 1. GET 'price_at_purchase' from body ---
-  const { product_name, variant, category_id, stock_quantity, price, price_at_purchase, description, image } = req.body;
+  const {
+    product_name,
+    variant,
+    category_id,
+    stock_quantity,
+    price,
+    price_at_purchase,
+    description,
+    image
+  } = req.body;
 
-  // --- 2. VALIDATE 'price_at_purchase' ---
-  if (!product_name || !variant || !category_id || !stock_quantity || !price || !price_at_purchase || !description || !image) {
-    return res.status(400).json({ message: "All fields, including an image, are required" });
+  // --- Validation ---
+  if (
+    !product_name ||
+    !variant ||
+    !category_id ||
+    !stock_quantity ||
+    !price ||
+    !price_at_purchase ||
+    !description ||
+    !image
+  ) {
+    return res.status(400).json({
+      message: "All fields, including image, are required",
+    });
   }
 
-  // --- 3. Product Name Uniqueness Check (from trigger) ---
-  // We still need to check for the error code, but the check itself is done by the DB
-
-  // --- 4. SKU Generation (from trigger) ---
-  // This is now handled entirely by the database trigger
-
-  // --- 5. Database Transaction ---
-  const client = await pool.connect(); 
   try {
-    await client.query("BEGIN"); 
+    // ⚙️ Directly call the procedure — no manual transaction needed
+    await pool.query(
+      `
+      CALL add_product_with_variant_proc(
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        NULL, NULL, NULL, NULL
+      );
+      `,
+      [
+        product_name,
+        category_id,
+        description,
+        image,
+        variant,
+        stock_quantity,
+        price,
+        price_at_purchase,
+      ]
+    );
 
-    const productQuery = `
-      INSERT INTO "Product" (product_name, category_id, description, image)
-      VALUES ($1, $2, $3, $4)
-      RETURNING product_id, "SKU"; 
-    `;
-    const productRes = await client.query(productQuery, [
-      product_name,
-      category_id,
-      description,
-      image 
-    ]);
-    const newProductId = productRes.rows[0].product_id;
-    const generatedSku = productRes.rows[0].SKU;
-
-    console.log(`Generated SKU ${generatedSku} for new product.`);
-
-    // --- 6. FIX: Use the new variable in the query ---
-    const variantQuery = `
-      INSERT INTO "Variant" (product_id, variant_name, stock_quantity, price, price_at_purchase)
-      VALUES ($1, $2, $3, $4, $5) 
-      RETURNING *;
-    `;
-    const variantRes = await client.query(variantQuery, [
-      newProductId,
-      variant, 
-      stock_quantity,
-      price,
-      price_at_purchase // <-- Use the new variable here ($5)
-    ]);
-
-    await client.query("COMMIT");
-    res.json({
+    res.status(201).json({
+      success: true,
       message: "Product and variant added successfully",
-      product: productRes.rows[0],
-      variant: variantRes.rows[0],
     });
-
   } catch (err) {
-    // --- 7. Error Handling (Unchanged) ---
-    await client.query("ROLLBACK").catch(() => {});
-    
-    if (err.code === '23505') { 
-      // Check for the unique index name (it might be 'product_name_unique_idx')
-      if (err.constraint === 'product_name_unique' || err.constraint === 'product_name_unique_idx') {
-        return res.status(400).json({ message: "A product with this name already exists. Please use a different name." });
-      }
+    console.error("Error adding product:", err.message);
+
+    if (err.code === "23505") {
+      // Duplicate product name (unique constraint)
+      return res.status(400).json({
+        message:
+          "A product with this name already exists. Please use a different name.",
+      });
     }
-    
-    console.error("Add product error:", err.stack);
-    res.status(500).send("Server error while adding product");
-  } finally {
-    client.release();
+
+    res.status(500).json({
+      message: "Server error while adding product",
+      error: err.message,
+    });
   }
 });
-
-// ... (keep all your other routes) ...
-module.exports = router;
 
 /* ===== Orders with Delivery Info ===== */
 router.get("/orders-with-delivery", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        o.order_id,
-        u.name AS customer_name,
-        o.order_status AS status,
-        SUM(oi.price_at_purchase * oi.quantity) AS total_amount,
-        o.order_date,
-        d.delivery_id,
-        d.estimated_delivery_date AS delivery_date
-      FROM "Order" o
-      JOIN "User" u ON o.user_id = u.user_id
-      JOIN "OrderItem" oi ON o.order_id = oi.order_id
-      LEFT JOIN "Delivery" d ON o.order_id = d.order_id
-      GROUP BY o.order_id, u.name, o.order_status, o.order_date, d.delivery_id, d.estimated_delivery_date
-      ORDER BY o.order_id ASC
+      SELECT * 
+      FROM vw_orders_with_delivery
+      ORDER BY order_id ASC;
     `);
-
     res.json(result.rows);
   } catch (err) {
     console.error("Orders with delivery fetch error:", err.stack);
-    res.status(500).send("Server error");
+    res.status(500).send("Server error while fetching orders with delivery");
   }
 });
 
@@ -167,16 +140,8 @@ router.get("/orders-with-delivery", async (req, res) => {
 router.get("/variants", async (req, res) => {
   try {
     const query = `
-      SELECT 
-        v.variant_id,
-        v.variant_name,
-        v.stock_quantity,
-        p.product_name,
-        c.category_name
-      FROM "Variant" v
-      JOIN "Product" p ON v.product_id = p.product_id
-      JOIN "Category" c ON p.category_id = c.category_id
-      ORDER BY c.category_name, p.product_name, v.variant_name;
+      SELECT * 
+      FROM vw_variant_details;
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -188,20 +153,24 @@ router.get("/variants", async (req, res) => {
 
 
 /* ===== Transactions ===== */
+/**
+ * @route   GET /api/admin/transactions
+ * @desc    Get all transaction details (with variant & product info)
+ */
 router.get("/transactions", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT t.transaction_id, t.variant_id, t.party_id, t.party_type,
-             t.transaction_type , t.quantity, t.transaction_date
-      FROM "Transaction" t
-      ORDER BY t.transaction_id ASC
+      SELECT *
+      FROM vw_transaction_details
+      ORDER BY transaction_id ASC;
     `);
     res.json(result.rows);
   } catch (err) {
-    console.error("Transactions fetch error:", err.stack);
-    res.status(500).send("Server error");
+    console.error("Error fetching transaction details:", err.stack);
+    res.status(500).send("Server error while fetching transaction details");
   }
 });
+
 
 /**
  * @route   PUT /api/admin/transactions/:id
@@ -444,19 +413,8 @@ router.get("/stats/netincome", async (req, res) => {
 router.get("/stats/category-orders", async (req, res) => {
   try {
     const query = `
-      SELECT 
-        c.category_name AS category,
-        SUM(oi.quantity) AS total_sold,
-        SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
-      FROM "OrderItem" oi
-      JOIN "Order" o ON oi.order_id = o.order_id
-      JOIN "Payment" p ON o.order_id = p.order_id
-      JOIN "Variant" v ON oi.variant_id = v.variant_id
-      JOIN "Product" pr ON v.product_id = pr.product_id
-      JOIN "Category" c ON pr.category_id = c.category_id
-      WHERE p.payment_status = 'Paid'
-      GROUP BY c.category_name
-      ORDER BY total_sold DESC;
+      SELECT * 
+      FROM vw_category_sales;
     `;
 
     const result = await pool.query(query);
