@@ -200,32 +200,7 @@ AFTER INSERT OR UPDATE OR DELETE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_variant_stock_on_transaction();
 
--- ===========================================================
---  TRIGGER FUNCTION: Create Delivery on New Order
--- ===========================================================
 
-CREATE OR REPLACE FUNCTION create_delivery_on_order()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Create a delivery record for ALL new orders,
-  -- regardless of delivery mode.
-  -- The driver (user_id) is set to NULL by default
-  -- to be assigned later by an Admin.
-  
-  INSERT INTO "Delivery" (
-    "order_id", 
-    "user_id",  -- This is the Driver's ID
-    "estimated_delivery_date"
-  )
-  VALUES (
-    NEW.order_id,
-    NULL,  -- Driver is unassigned (NULL) on creation
-    NEW.estimated_delivery_date
-  );
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
 -- ===========================================================
 --  TRIGGER CREATION
@@ -1123,3 +1098,35 @@ WHERE p.payment_status = 'Paid'
 GROUP BY c.category_name
 ORDER BY total_sold DESC;
 
+
+-- ===========================================================
+--  TRIGGER FUNCTION: Create Delivery on New Order
+-- ===========================================================
+
+CREATE OR REPLACE FUNCTION create_delivery_on_order()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Create a delivery record for ALL new orders,
+  -- regardless of delivery mode.
+  -- The driver (user_id) is set to NULL by default
+  -- to be assigned later by an Admin.
+  
+  INSERT INTO "Delivery" (
+    "order_id", 
+    "user_id",  -- This is the Driver's ID
+    "estimated_delivery_date"
+  )
+  VALUES (
+    NEW.order_id,
+    NULL,  -- Driver is unassigned (NULL) on creation
+    NEW.estimated_delivery_date
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_create_delivery_on_order
+AFTER INSERT ON "Order"
+FOR EACH ROW
+EXECUTE FUNCTION create_delivery_on_order();
