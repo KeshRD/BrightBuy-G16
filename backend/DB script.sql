@@ -200,6 +200,21 @@ AFTER INSERT OR UPDATE OR DELETE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_variant_stock_on_transaction();
 
+
+
+-- ===========================================================
+--  TRIGGER CREATION
+-- ===========================================================
+
+-- Drop the trigger if it already exists (optional, good for testing)
+DROP TRIGGER IF EXISTS trg_create_delivery_on_order ON "Order";
+
+-- Create the trigger
+CREATE TRIGGER trg_create_delivery_on_order
+  AFTER INSERT ON "Order" -- This fires *after* the order is successfully created
+  FOR EACH ROW
+  EXECUTE FUNCTION create_delivery_on_order();
+
 -- ===== CATEGORY =====
 INSERT INTO "Category" ("category_name") VALUES
 ('Smartphones'),
@@ -696,13 +711,13 @@ ADD CONSTRAINT payment_payment_status_check
 CHECK (payment_status IN ('Pending','Paid'));
 
 -- Create table
-CREATE TABLE Cities (
+CREATE TABLE "Cities" (
     city_id SERIAL PRIMARY KEY,
     city_name VARCHAR(100) NOT NULL
 );
 
 -- Insert main cities of Texas
-INSERT INTO Cities (city_name) VALUES
+INSERT INTO "Cities" (city_name) VALUES
 ('Houston'),
 ('San Antonio'),
 ('Dallas'),
@@ -711,7 +726,7 @@ INSERT INTO Cities (city_name) VALUES
 ('El Paso'),
 ('Arlington'),
 ('Corpus Christi'),
-('Plano'),
+('Plano'), 
 ('Lubbock'),
 ('Irving'),
 ('Laredo'),
@@ -960,3 +975,158 @@ WHERE variant_id = 10;
 UPDATE "Variant"
 SET stock_quantity = stock_quantity + 5
 WHERE variant_id = 8;
+
+-- ============================================
+-- Procedure: add_product_with_variant_proc
+-- Description: Inserts a new product + variant safely
+-- ============================================
+
+CREATE OR REPLACE PROCEDURE add_product_with_variant_proc(
+    IN p_product_name TEXT,
+    IN p_category_id INT,
+    IN p_description TEXT,
+    IN p_image TEXT,
+    IN p_variant_name TEXT,
+    IN p_stock_quantity INT,
+    IN p_price NUMERIC,
+    IN p_price_at_purchase NUMERIC,
+    OUT o_product_id INT,
+    OUT o_variant_id INT,
+    OUT o_sku TEXT,
+    OUT o_message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+BEGIN
+    -- Start a local transaction block
+    BEGIN
+        -- Validate category
+        IF NOT EXISTS (SELECT 1 FROM "Category" WHERE category_id = p_category_id) THEN
+            RAISE EXCEPTION 'Invalid category_id: %', p_category_id;
+        END IF;
+
+        -- Insert product
+        INSERT INTO "Product" (category_id, product_name, description, image)
+        VALUES (p_category_id, p_product_name, p_description, p_image)
+        RETURNING product_id, "SKU" INTO o_product_id, o_sku;
+
+        -- Insert variant
+        INSERT INTO "Variant" (product_id, variant_name, stock_quantity, price, price_at_purchase)
+        VALUES (o_product_id, p_variant_name, p_stock_quantity, p_price, p_price_at_purchase)
+        RETURNING variant_id INTO o_variant_id;
+
+        o_message := 'Product and variant added successfully';
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            o_message := format('Error adding product: %', SQLERRM);
+            ROLLBACK;
+            RETURN;
+    END;
+END;
+$$;
+
+CREATE OR REPLACE VIEW vw_product_details AS
+SELECT 
+  p.product_id,
+  p.product_name,
+  v.variant_id,
+  v.variant_name,
+  c.category_name,
+  v.stock_quantity,
+  v.price
+FROM "Product" p
+JOIN "Category" c ON p.category_id = c.category_id
+LEFT JOIN "Variant" v ON p.product_id = v.product_id
+ORDER BY p.product_id, v.variant_id;
+
+CREATE OR REPLACE VIEW vw_orders_with_delivery AS
+SELECT 
+  o.order_id,
+  u.name AS customer_name,
+  o.order_status AS status,
+  SUM(oi.price_at_purchase * oi.quantity) AS total_amount,
+  o.order_date,
+  d.delivery_id,
+  d.estimated_delivery_date AS delivery_date
+FROM "Order" o
+JOIN "User" u ON o.user_id = u.user_id
+JOIN "OrderItem" oi ON o.order_id = oi.order_id
+LEFT JOIN "Delivery" d ON o.order_id = d.order_id
+GROUP BY o.order_id, u.name, o.order_status, o.order_date, d.delivery_id, d.estimated_delivery_date;
+
+CREATE OR REPLACE VIEW vw_transaction_details AS
+SELECT 
+  t.transaction_id,
+  t.variant_id,
+  v.variant_name,
+  p.product_name,
+  t.party_id,
+  t.party_type,
+  t.transaction_type,
+  t.quantity,
+  t.transaction_date
+FROM "Transaction" t
+LEFT JOIN "Variant" v ON t.variant_id = v.variant_id
+LEFT JOIN "Product" p ON v.product_id = p.product_id;
+
+CREATE OR REPLACE VIEW vw_variant_details AS
+SELECT 
+  v.variant_id,
+  v.variant_name,
+  v.stock_quantity,
+  p.product_name,
+  c.category_name
+FROM "Variant" v
+JOIN "Product" p ON v.product_id = p.product_id
+JOIN "Category" c ON p.category_id = c.category_id
+ORDER BY c.category_name, p.product_name, v.variant_name;
+
+CREATE OR REPLACE VIEW vw_category_sales AS
+SELECT 
+  c.category_name AS category,
+  SUM(oi.quantity) AS total_sold,
+  SUM(oi.price_at_purchase * oi.quantity) AS total_revenue
+FROM "OrderItem" oi
+JOIN "Order" o ON oi.order_id = o.order_id
+JOIN "Payment" p ON o.order_id = p.order_id
+JOIN "Variant" v ON oi.variant_id = v.variant_id
+JOIN "Product" pr ON v.product_id = pr.product_id
+JOIN "Category" c ON pr.category_id = c.category_id
+WHERE p.payment_status = 'Paid'
+GROUP BY c.category_name
+ORDER BY total_sold DESC;
+
+
+-- ===========================================================
+--  TRIGGER FUNCTION: Create Delivery on New Order
+-- ===========================================================
+
+CREATE OR REPLACE FUNCTION create_delivery_on_order()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Create a delivery record for ALL new orders,
+  -- regardless of delivery mode.
+  -- The driver (user_id) is set to NULL by default
+  -- to be assigned later by an Admin.
+  
+  INSERT INTO "Delivery" (
+    "order_id", 
+    "user_id",  -- This is the Driver's ID
+    "estimated_delivery_date"
+  )
+  VALUES (
+    NEW.order_id,
+    NULL,  -- Driver is unassigned (NULL) on creation
+    NEW.estimated_delivery_date
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_create_delivery_on_order
+AFTER INSERT ON "Order"
+FOR EACH ROW
+EXECUTE FUNCTION create_delivery_on_order();
