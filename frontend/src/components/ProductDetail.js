@@ -55,43 +55,51 @@ const ProductDetail = () => {
 
   return (
     <>
-      <Navbar /> 
-      <div className="App-header product-detail" style={{ paddingTop: '80px' }}>
-        <h2>{product.product_name}</h2>
-        <img
+      <Navbar />
+      <div className="App-header product-detail">
+        <div className="product-main">
+          <div className="product-image-container">
+            <img
               src={`http://localhost:5000${product.image}`}
               alt={product.product_name}
               className="product-card-image"
             />
-        
-        <p>{product.description}</p>
-        <h3>Category: {product.category_name}</h3>
-        <p>SKU: {product.SKU}</p>
-        <h3>Variants</h3>
-        {error && <p className="error">{error}</p>}
-        <ul>
-          {product.variants.map((variant) => (
-            <li key={variant.variant_id}>
-              <p>Variant: {variant.variant_name}</p>
-              <p>Price: ${variant.price.toFixed(2)}</p>
-              <p>Stock: {variant.stock_quantity} units</p>
-              <button onClick={() => handleAddToCart(variant.variant_id)}>Add to Cart</button>
-              <button onClick={() => {
-                navigate('/checkout', {
-                  state: {
-                    buyNowItem: {
-                      ...product,
-                      ...variant,
-                      quantity: 1,
-                      image: product.image,
-                      cart_item_id: `buy-now-${variant.variant_id}`
-                    }
-                  }
-                });
-              }}>Buy Now</button>         
-            </li>
-          ))}
-        </ul>
+          </div>
+          <div className="product-details">
+            <h2 className="product-title">{product.product_name}</h2>
+            <div className="product-info">
+              <p className="product-description">{product.description}</p>
+              <p className="product-category">Category: {product.category_name}</p>
+            </div>
+            <div className="variants-section">
+              <h3 className="variants-title">Variants</h3>
+              {error && <p className="error">{error}</p>}
+              <ul>
+                {product.variants.map((variant) => (
+                  <li key={variant.variant_id}>
+                    <p className="variant-name">Variant: {variant.variant_name}</p>
+                    <p className="variant-price">Price: ${variant.price.toFixed(2)}</p>
+                    <p className="variant-stock">Stock: {variant.stock_quantity} units</p>
+                    <button className="add-to-cart-btn" onClick={() => handleAddToCart(variant.variant_id)}>Add to Cart</button>
+                    <button className="buy-now-btn" onClick={() => {
+                      navigate('/checkout', {
+                        state: {
+                          buyNowItem: {
+                            ...product,
+                            ...variant,
+                            quantity: 1,
+                            image: product.image,
+                            cart_item_id: `buy-now-${variant.variant_id}`
+                          }
+                        }
+                      });
+                    }}>Buy Now</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

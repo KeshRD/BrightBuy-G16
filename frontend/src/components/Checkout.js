@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate, useLocation } from 'react-router-dom'; 
+import { useNavigate, useLocation } from 'react-router-dom';
 import './checkout.css';
-
 
 const Checkout = () => {
     const [cartItems, setCartItems] = useState([]);
@@ -12,16 +11,12 @@ const Checkout = () => {
     const location = useLocation();
 
     useEffect(() => {
-      
         const buyNowItem = location.state?.buyNowItem;
 
         if (buyNowItem) {
-        
             setCartItems([buyNowItem]);
-  
             setSelectedItems(new Set([buyNowItem.cart_item_id]));
         } else {
-
             if (!localStorage.getItem('token')) {
                 navigate('/');
                 return;
@@ -31,7 +26,6 @@ const Checkout = () => {
                 try {
                     const response = await axios.get('http://localhost:5000/cart');
                     setCartItems(response.data);
-              
                     setSelectedItems(new Set(response.data.map(item => item.cart_item_id)));
                 } catch (err) {
                     console.error('Fetch cart error:', err);
@@ -47,7 +41,7 @@ const Checkout = () => {
             };
             fetchCart();
         }
-    }, [navigate, location.state]); 
+    }, [navigate, location.state]);
 
     const handleSelectItem = (itemId) => {
         const newSelectedItems = new Set(selectedItems);
@@ -58,7 +52,6 @@ const Checkout = () => {
         }
         setSelectedItems(newSelectedItems);
     };
-    
 
     const selectedCartItems = cartItems.filter(item => selectedItems.has(item.cart_item_id));
 
@@ -67,7 +60,7 @@ const Checkout = () => {
         return isNaN(price) ? sum : sum + item.quantity * price;
     }, 0);
 
-    const tax = subtotal * 0.10; 
+    const tax = subtotal * 0.10;
     const total = subtotal + tax;
 
     const handlePlaceOrder = () => {
@@ -75,12 +68,12 @@ const Checkout = () => {
             alert("Please select at least one item to checkout.");
             return;
         }
-     
-        navigate('/payment', { 
-            state: { 
-                items: selectedCartItems, 
-                total: total 
-            } 
+
+        navigate('/payment', {
+            state: {
+                items: selectedCartItems,
+                total: total
+            }
         });
     };
 
@@ -101,11 +94,10 @@ const Checkout = () => {
                                     onChange={() => handleSelectItem(item.cart_item_id)}
                                 />
                                 <img
-              src={`http://localhost:5000${item.image}`}
-              alt={item.product_name}
-              className="product-card-image"
-            />
-                                <img src={item.image} alt={item.product_name} className="checkout-item-image" />
+                                    src={`http://localhost:5000${item.image}`}
+                                    alt={item.product_name}
+                                    className="checkout-item-image"
+                                />
                                 <div className="item-details">
                                     <h4>{item.product_name} - {item.variant_name}</h4>
                                     <p>Qty: {item.quantity}</p>
@@ -133,7 +125,7 @@ const Checkout = () => {
                         <strong>Total</strong>
                         <strong>${total.toFixed(2)}</strong>
                     </div>
-                    
+
                     <button className="place-order-btn" onClick={handlePlaceOrder}>Place Order</button>
                 </div>
             </div>

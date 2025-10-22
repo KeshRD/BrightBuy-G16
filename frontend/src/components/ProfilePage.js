@@ -217,7 +217,7 @@ function OrderList({ title, items }) {
             <div className="order-actions">
               <button
                 className="btn small ghost"
-                onClick={() => window.location.assign(`/orders`)}
+                onClick={() => window.location.assign("/orders")}
               >
                 Details
               </button>
@@ -261,5 +261,5 @@ function CheckIcon() {
 function DotsIcon() {
   return (
     <svg viewBox="0 0 24 24" className="ico"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-  );
+  );
 }
