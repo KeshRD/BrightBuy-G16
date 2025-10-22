@@ -200,6 +200,46 @@ AFTER INSERT OR UPDATE OR DELETE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_variant_stock_on_transaction();
 
+-- ===========================================================
+--  TRIGGER FUNCTION: Create Delivery on New Order
+-- ===========================================================
+
+CREATE OR REPLACE FUNCTION create_delivery_on_order()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Create a delivery record for ALL new orders,
+  -- regardless of delivery mode.
+  -- The driver (user_id) is set to NULL by default
+  -- to be assigned later by an Admin.
+  
+  INSERT INTO "Delivery" (
+    "order_id", 
+    "user_id",  -- This is the Driver's ID
+    "estimated_delivery_date"
+  )
+  VALUES (
+    NEW.order_id,
+    NULL,  -- Driver is unassigned (NULL) on creation
+    NEW.estimated_delivery_date
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ===========================================================
+--  TRIGGER CREATION
+-- ===========================================================
+
+-- Drop the trigger if it already exists (optional, good for testing)
+DROP TRIGGER IF EXISTS trg_create_delivery_on_order ON "Order";
+
+-- Create the trigger
+CREATE TRIGGER trg_create_delivery_on_order
+  AFTER INSERT ON "Order" -- This fires *after* the order is successfully created
+  FOR EACH ROW
+  EXECUTE FUNCTION create_delivery_on_order();
+
 -- ===== CATEGORY =====
 INSERT INTO "Category" ("category_name") VALUES
 ('Smartphones'),
@@ -696,13 +736,13 @@ ADD CONSTRAINT payment_payment_status_check
 CHECK (payment_status IN ('Pending','Paid'));
 
 -- Create table
-CREATE TABLE Cities (
+CREATE TABLE "Cities" (
     city_id SERIAL PRIMARY KEY,
     city_name VARCHAR(100) NOT NULL
 );
 
 -- Insert main cities of Texas
-INSERT INTO Cities (city_name) VALUES
+INSERT INTO "Cities" (city_name) VALUES
 ('Houston'),
 ('San Antonio'),
 ('Dallas'),
@@ -711,7 +751,7 @@ INSERT INTO Cities (city_name) VALUES
 ('El Paso'),
 ('Arlington'),
 ('Corpus Christi'),
-('Plano'),
+('Plano'), 
 ('Lubbock'),
 ('Irving'),
 ('Laredo'),
