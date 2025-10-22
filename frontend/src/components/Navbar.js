@@ -6,7 +6,7 @@ import homeIcon from "../assets/home.svg";
 import cartIcon from "../assets/cart.svg";
 import userIcon from "../assets/user.svg";
 
-const Navbar = () => {
+const Navbar = ({ showSearch = true }) => {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -91,33 +91,35 @@ const Navbar = () => {
         <div />
 
         <div className="navbar-right">
-          <div className="navbar-search">
-            <div className="search-wrap">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                onFocus={() => setShowSuggestions(true)}
-              />
-              <button className="search-btn" onClick={handleSearch}>Search</button>
+          {showSearch && (
+            <div className="navbar-search">
+              <div className="search-wrap">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                />
+                <button className="search-btn" onClick={handleSearch}>Search</button>
 
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="search-suggestions">
-                  {suggestions.map((p) => (
-                    <li
-                      key={p.product_id}
-                      className="suggestion-item"
-                      onClick={() => navigate(`/product/${p.product_id}`)}
-                    >
-                      <div className="s-title">{p.product_name}</div>
-                      <div className="s-meta">{p.category_name} • SKU_{p.SKU}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="search-suggestions">
+                    {suggestions.map((p) => (
+                      <li
+                        key={p.product_id}
+                        className="suggestion-item"
+                        onClick={() => navigate(`/product/${p.product_id}`)}
+                      >
+                        <div className="s-title">{p.product_name}</div>
+                        <div className="s-meta">{p.category_name} • SKU_{p.SKU}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="navbar-links">
             <button className="navbar-link-btn" onClick={() => navigate("/products")}>
@@ -130,7 +132,13 @@ const Navbar = () => {
               <img src={homeIcon} alt="Home" />
             </button>
 
-            <button className="navbar-icon" onClick={() => navigate("/cart")}>
+            <button className="navbar-icon" onClick={() => {
+              if (!localStorage.getItem("token")) {
+                alert("Sign up/Log in to enjoy the full benefits of our service");
+              } else {
+                navigate("/cart");
+              }
+            }}>
               <img src={cartIcon} alt="Cart" />
               {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
             </button>
@@ -146,12 +154,20 @@ const Navbar = () => {
 
               {menuOpen && (
                 <div className="user-dropdown-panel">
-                  <button onClick={() => { setMenuOpen(false); navigate("/profile"); }}>
-                    Profile
-                  </button>
-                  <button className="logout-btn" onClick={handleLogout}>
-                    Logout
-                  </button>
+                  {localStorage.getItem("token") ? (
+                    <>
+                      <button onClick={() => { setMenuOpen(false); navigate("/profile"); }}>
+                        My Profile
+                      </button>
+                      <button className="logout-btn" onClick={handleLogout}>
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => { setMenuOpen(false); navigate("/auth"); }}>
+                      Log in/Sign up
+                    </button>
+                  )}
                 </div>
               )}
             </div>

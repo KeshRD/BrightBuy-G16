@@ -56,11 +56,9 @@ const HomePage = ({ showProductsOnly }) => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/");
-      return;
+    if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
     (async () => {
       try {
@@ -97,11 +95,17 @@ const HomePage = ({ showProductsOnly }) => {
     return nums.length ? Math.min(...nums) : null;
   };
 
-  const openProduct = (id) => navigate(`/product/${id}`);
+  const openProduct = (id) => {
+    if (!localStorage.getItem("token")) {
+      alert("Sign up/Log in to enjoy the full benefits of our service");
+    } else {
+      navigate(`/product/${id}`);
+    }
+  };
 
   return (
     <>
-      <Navbar />
+      <Navbar showSearch={showProductsOnly} />
       {!showProductsOnly ? (
         <section className="slideshow" aria-label="Featured products slideshow">
           <div className="slideshow-container">
@@ -125,7 +129,8 @@ const HomePage = ({ showProductsOnly }) => {
           <div className="welcome-content">
             <h1>Welcome to Bright Buy!</h1>
             <p>Discover amazing products at unbeatable prices.</p>
-            <Link to="/products" className="shop-now-btn">Shop Now</Link>
+            <p>Explore our curated selection of electronics, gadgets, and tech accessories from top brands. Whether you're looking for the latest smartphones, gaming consoles, or smart home devices, we have everything you need to stay connected and entertained.</p>
+            <p>Join thousands of satisfied customers who trust Bright Buy for quality products, fast shipping, and exceptional customer service. Start shopping today and experience the difference!</p>
           </div>
         </section>
       )}
@@ -134,6 +139,8 @@ const HomePage = ({ showProductsOnly }) => {
           <div className="about-us-content">
             <h2>About Us</h2>
             <p>At Bright Buy, we are committed to providing high-quality products and exceptional customer service. Our mission is to make shopping easy, fun, and affordable for everyone.</p>
+            <p>Founded in 2020, Bright Buy has grown from a small online store to a trusted destination for tech enthusiasts and everyday shoppers alike. We partner with leading brands to bring you the latest gadgets, electronics, and accessories at competitive prices.</p>
+            <p>Our team is dedicated to ensuring a seamless shopping experience, from browsing our curated selection to fast, reliable delivery. We believe in building long-term relationships with our customers through transparency, quality, and innovation.</p>
           </div>
         </section>
       )}

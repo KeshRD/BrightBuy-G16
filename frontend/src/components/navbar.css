@@ -3,8 +3,8 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #1c1f24;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0a0a0a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 /* ===== Grid Layout ===== */
@@ -19,7 +19,7 @@
 
 /* ===== Brand ===== */
 .navbar-brand {
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: #fff;
   cursor: pointer;
@@ -120,6 +120,29 @@
 .s-meta {
   color: #9aa4b2;
   font-size: 0.85rem;
+}
+
+/* ===== Links ===== */
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar-link-btn {
+  background: linear-gradient(90deg, #61dafb 0%, #36a9e1 100%);
+  color: #09111d;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.navbar-link-btn:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 0 14px rgba(97, 218, 251, 0.4);
 }
 
 /* ===== Icons ===== */

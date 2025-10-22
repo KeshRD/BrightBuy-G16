@@ -1,12 +1,12 @@
 /* src/App.css (Updated: Added styles for button-group and cart-list) */
 :root {
-  /* New design tokens (merge-friendly) */
-  --primary: #111111;
+  /* New design tokens (merge-friendly) - Dark Theme */
+  --primary: #FFFFFF;
   --accent: #E23E3E;
   --neutral-900: #0b0b0b;
   --neutral-700: #33363a;
   --neutral-500: #8f9498;
-  --neutral-100: #f7f7f8;
+  --neutral-100: #1c1f24;
   --white: #FFFFFF;
 
   --sp-1: 4px;
@@ -18,11 +18,11 @@
 
   --radius-sm: 6px;
   --radius-md: 8px;
-  --shadow-soft: 0 6px 18px rgba(16,24,40,0.06);
+  --shadow-soft: 0 6px 18px rgba(0,0,0,0.3);
 
   /* Backwards compatibility tokens used elsewhere */
   --primary-color: var(--primary);
-  --secondary-color: var(--white);
+  --secondary-color: var(--neutral-100);
   --accent-color: var(--accent);
   --neutral-color: var(--neutral-100);
   --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
@@ -72,7 +72,7 @@ body {
 /* Slideshow styles */
 .slideshow {
   width: 100%;
-  height: 500px;
+  height: 600px;
   overflow: hidden;
   position: relative;
   display: flex;
@@ -95,7 +95,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background-color: #f7f7f8; /* Neutral background for letterboxing */
+  background-color: var(--neutral-100); /* Dark background for letterboxing */
 }
 .slideshow-nav {
   position: absolute;
@@ -159,6 +159,29 @@ body {
 
 /* Intro and featured cards */
 .intro .lead { font-size: 1.0625rem; color: var(--neutral-700); margin: 24px 0; }
+
+/* Welcome and About Us sections */
+.welcome-container, .about-us-container {
+  padding: 48px 16px;
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.welcome-content h1, .about-us-content h2 {
+  color: var(--white);
+  margin-bottom: 16px;
+}
+
+.welcome-content p, .about-us-content p {
+  color: var(--neutral-500);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.about-us-container {
+  margin-top: -32px;
+}
 .featured-cards { display:flex; gap:16px; padding: 24px 0 48px; }
 .featured-cards .card { flex:1; background: var(--white); border-radius: var(--radius-md); overflow:hidden; box-shadow: var(--shadow-soft); cursor: pointer; display:flex; flex-direction:column; }
 .card-media { height:160px; }
@@ -219,7 +242,7 @@ button:hover {
 }
 
 .product-card {
-  background-color: var(--white);
+  background-color: var(--neutral-900);
   padding: 0;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -243,9 +266,9 @@ button:hover {
 }
 
 .product-card .meta { padding: 12px; display:flex; flex-direction:column; gap:8px; }
-.product-card .title { font-weight:600; font-size:1rem; margin:0; color:var(--neutral-900); }
-.product-card .desc { font-size:0.9rem; color:var(--neutral-700); margin:0; height:36px; overflow:hidden; }
-.product-card .price { color:var(--neutral-700); font-weight:700; }
+.product-card .title { font-weight:600; font-size:1rem; margin:0; color:var(--white); }
+.product-card .desc { font-size:0.9rem; color:var(--neutral-500); margin:0; height:36px; overflow:hidden; }
+.product-card .price { color:var(--neutral-500); font-weight:700; }
 
 .cart-list {
   list-style-type: none;
@@ -361,7 +384,7 @@ button:hover {
 }
 
 .footer {
-  background-color: rgba(245, 241, 241, 0.87);
+  background-color: var(--neutral-900);
   padding: 20px;
   margin-top: auto;
 }
@@ -377,11 +400,13 @@ button:hover {
 
 .footer-left {
   text-align: left;
+  color: var(--neutral-500);
 }
 
 .footer-center {
   text-align: center;
   flex: 1;
+  color: var(--neutral-500);
 }
 
 .footer-right {
@@ -391,11 +416,12 @@ button:hover {
 }
 
 .footer-link {
-  color: var(--black);
+  color: var(--neutral-500);
   text-decoration: none;
 }
 
 .footer-link:hover {
   text-decoration: none;
+  color: var(--white);
 }
 

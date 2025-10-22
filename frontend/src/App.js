@@ -21,10 +21,11 @@ function App() {
   return (
     <div className="App">
       <Routes>
-        <Route path="/" element={<AuthPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route path="/admin" element={<AdminPage />} />
-  <Route path="/home" element={<HomePage />} />
-  <Route path="/products" element={<HomePage showProductsOnly={true} />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/products" element={<HomePage showProductsOnly={true} />} />
         <Route path="/product/:productId" element={<ProductDetail />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<Checkout />} />

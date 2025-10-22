@@ -138,7 +138,7 @@ const DriverDashboard = () => {
   if (error) return <div>{error}</div>;
 
   return (
-    <div style={{ position: 'relative', padding: '20px', fontFamily: 'Brandon Grotesque, sans-serif' }}>
+    <div style={{ position: 'relative', padding: '20px', fontFamily: 'Roboto, sans-serif', background: 'linear-gradient(135deg, #000000 0%, #121212 50%, #1a1a1a 100%)', color: '#ffffff', minHeight: '100vh' }}>
       {/* Profile Icon */}
       <div
         onClick={() => setSidebarOpen(true)}
@@ -148,7 +148,7 @@ const DriverDashboard = () => {
           left: '10px',
           cursor: 'pointer',
           fontSize: '24px',
-          color: '#000'
+          color: '#ffffff'
         }}
         title="Profile"
       >
@@ -164,35 +164,37 @@ const DriverDashboard = () => {
             left: 0,
             width: '300px',
             height: '100%',
-            backgroundColor: '#fff',
-            boxShadow: '2px 0 5px rgba(0,0,0,0.1)',
+            backgroundColor: '#1e1e1e',
+            boxShadow: '2px 0 5px rgba(0,0,0,0.5)',
             zIndex: 1000,
             padding: '20px',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            color: '#ffffff'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3>My Profile</h3>
+            <h3 style={{ color: '#ffffff' }}>My Profile</h3>
             <button
               onClick={() => setSidebarOpen(false)}
               style={{
                 background: 'none',
                 border: 'none',
                 fontSize: '20px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                color: '#ffffff'
               }}
             >
               ×
             </button>
           </div>
           {profile ? (
-            <div style={{ textAlign: 'left' }}>
+            <div style={{ textAlign: 'left', color: '#ffffff' }}>
               <p><strong>Name:</strong> {profile.name}</p>
               <p><strong>Email:</strong> {profile.email}</p>
               <p><strong>Driver ID:</strong> {profile.user_id}</p>
             </div>
           ) : (
-            <p style={{ textAlign: 'left' }}>Loading profile...</p>
+            <p style={{ textAlign: 'left', color: '#ffffff' }}>Loading profile...</p>
           )}
         </div>
       )}
@@ -220,8 +222,8 @@ const DriverDashboard = () => {
           top: '10px',
           right: '10px',
           padding: '8px 16px',
-          backgroundColor: '#ccc',
-          color: '#000',
+          backgroundColor: '#333',
+          color: '#ffffff',
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
@@ -233,16 +235,16 @@ const DriverDashboard = () => {
       </button>
 
       <h2 style={{ marginTop: 0, fontSize: '2em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Delivery Portal
+        Dispatch Portal
       </h2>
       <div style={{ marginBottom: '12px' }}>
-        <label style={{ marginRight: '10px' }}>Filter:</label>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '4px 8px' }}>
+        <label style={{ marginRight: '10px', color: '#ffffff' }}>Filter:</label>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '4px 8px', backgroundColor: '#333', color: '#ffffff', border: '1px solid #555' }}>
           <option value="all">All Orders</option>
           <option value="mine">My Orders</option>
         </select>
       </div>
-      <hr style={{ border: 'none', borderTop: '8px solid #ccc', margin: '8px 0 12px' }} />
+      <hr style={{ border: 'none', borderTop: '8px solid #555', margin: '8px 0 12px' }} />
 
       {filteredDeliveries.length === 0 ? (
         <p>No delivery entries found.</p>
@@ -258,7 +260,7 @@ const DriverDashboard = () => {
 
           return Object.keys(grouped).sort((a, b) => statusOrder(a) - statusOrder(b)).map(status => (
             <div key={status} style={{ marginBottom: '40px' }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '1.4em', color: '#333' }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '1.4em', color: '#ffffff' }}>
                 {status === 'Pending' ? 'Pending Orders' :
                  status === 'Confirmed' ? 'Confirmed Orders' :
                  status === 'Shipped' ? 'Shipped Orders' :
@@ -266,28 +268,28 @@ const DriverDashboard = () => {
               </h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#f4f4f4' }}>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Order ID</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Date of Arrival</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Items Ordered and Price</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Total Price</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Mode of Payment</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Payment Status</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Delivery Address</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Customer Name</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Order Status</th>
+                  <tr style={{ backgroundColor: '#333' }}>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Order ID</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Date of Arrival</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Items Ordered and Price</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Total Price</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Mode of Payment</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Payment Status</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Delivery Address</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Customer Name</th>
+                    <th style={{ border: '1px solid #555', padding: '8px', textAlign: 'left', color: '#ffffff' }}>Order Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {grouped[status].map(d => (
-                    <tr key={d.delivery_id}>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.order_id}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                    <tr key={d.delivery_id} style={{ backgroundColor: '#1e1e1e' }}>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>{d.order_id}</td>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>
                         {d.arrival_date ? new Date(d.arrival_date).toLocaleString() : 'N/A'}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>
                         {Array.isArray(d.items) && d.items.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                          <ul style={{ margin: 0, paddingLeft: '20px', color: '#ffffff' }}>
                             {d.items.map((it, idx) => (
                               <li key={idx}>
                                 {it.product_name} - {it.variant_name} x{it.quantity} @ ${it.price}
@@ -298,9 +300,9 @@ const DriverDashboard = () => {
                           'No items listed'
                         )}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>${d.total_price.toFixed(2)}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.payment_method || 'N/A'}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>${d.total_price.toFixed(2)}</td>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>{d.payment_method || 'N/A'}</td>
+                      <td style={{ border: '1px solid #555', padding: '8px' }}>
                         {(() => {
                           const isMine = d.driver_id && myDriverId && d.driver_id === myDriverId;
                           const paymentStatus = d.payment_status && d.payment_status !== 'Unknown' ? d.payment_status : (d.payment_method === 'Card Payment' ? 'Paid' : 'Pending');
@@ -358,9 +360,9 @@ const DriverDashboard = () => {
                           );
                         })()}
                       </td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.delivery_address || 'N/A'}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{d.customer_name}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>{d.delivery_address || 'N/A'}</td>
+                      <td style={{ border: '1px solid #555', padding: '8px', color: '#ffffff' }}>{d.customer_name}</td>
+                      <td style={{ border: '1px solid #555', padding: '8px' }}>
                         {(() => {
                           const status = d.status && d.status !== 'Unknown' ? d.status : 'Pending';
                           const assigned = !!d.driver_id;
