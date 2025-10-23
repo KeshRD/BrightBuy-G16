@@ -92,7 +92,7 @@ const AdminPage = () => {
       </nav>
 
 
-      <div style={{ flex: 1, padding: "20px", background: "#111827", color: "#fff" }}>
+      <div style={{ flex: 1, padding: "20px", background: "#433a69ff", color: "#ffffffff" }}>
         {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "products" && <Products />}
         {activeTab === "orders" && <Orders />}

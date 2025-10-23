@@ -63,7 +63,7 @@
 .search-wrap input:focus {
   border-color: #61dafb;
   box-shadow: 0 0 10px rgba(97, 218, 251, 0.35);
-  background: #141820;
+  background: #ffffff;
 }
 
 .search-btn {

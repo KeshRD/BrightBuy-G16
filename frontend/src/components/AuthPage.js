@@ -148,8 +148,7 @@ const AuthPage = () => {
                     aria-label="Role"
                   >
                     <option value="Registered Customer">Registered Customer</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Delivery Driver">Delivery Driver</option>
+                    
                   </select>
                 </label>
               </>

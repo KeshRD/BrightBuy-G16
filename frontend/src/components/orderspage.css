@@ -29,7 +29,7 @@
 
 .order-header p {
     font-size: 0.9rem;
-    color: #aaa;
+    color: #000000;
     margin-top: 4px;
 }
 
@@ -43,7 +43,7 @@
     border-radius: 15px;
     font-size: 0.8rem;
     font-weight: bold;
-    color: #fff;
+    color: #3037c2;
     margin-bottom: 8px;
     text-transform: capitalize;
 }
@@ -75,6 +75,6 @@
 
 .order-items li {
     font-size: 0.9rem;
-    color: #ccc;
+    color: #000000;
     padding: 4px 0;
 }
