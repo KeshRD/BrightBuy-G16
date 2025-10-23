@@ -97,6 +97,17 @@ const authenticate = (req, res, next) => {
   });
 };
 
+// Development-only helper to format DB errors (safe to print locally)
+const formatDbError = (err) => {
+  if (!err) return '';
+  // include message and any PG-specific fields if present
+  const parts = [err.message || ''];
+  if (err.code) parts.push(`code=${err.code}`);
+  if (err.detail) parts.push(`detail=${err.detail}`);
+  if (err.hint) parts.push(`hint=${err.hint}`);
+  return parts.join(' | ');
+};
+
 /* ===== Auth: Login / Signup ===== */
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -128,7 +139,8 @@ app.post('/login', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Login error:', err.stack || err);
+    console.error('Login error:', err.stack || err, formatDbError(err));
+    // return original generic message but log detailed DB error for debugging
     res.status(500).json({ success: false, message: 'Server error during login' });
   }
 });
@@ -152,7 +164,7 @@ app.post('/signup', async (req, res) => {
     console.log('✅ User created successfully:', email);
     res.json({ success: true });
   } catch (err) {
-    console.error('❌ Signup error:', err.stack || err);
+    console.error('❌ Signup error:', err.stack || err, formatDbError(err));
     res.status(500).json({ success: false, message: 'Server error during signup' });
   }
 });

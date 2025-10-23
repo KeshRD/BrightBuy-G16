@@ -14,6 +14,7 @@ import DriverDashboard from './components/DriverDashboard';
 import AddProductPage from './components/AddProductPage';
 import './App.css';
 import './components/navbar.css'; 
+import ChatbotPage from './components/ChatbotPage'; // Correct import
 import ProfilePage from "./components/ProfilePage";
 
 
@@ -35,6 +36,7 @@ function App() {
         <Route path="/driver" element={<DriverDashboard />} />
         <Route path="/admin/products/new" element={<AddProductPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/chatbot" element={<ChatbotPage />} /> {/* Correct PascalCase */}
       </Routes>
     </div>
   );

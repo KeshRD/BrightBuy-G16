@@ -87,11 +87,11 @@
     width: 100%;
     padding: 15px;
     font-size: 1.1rem;
-    background-color: #4caf50;
+    background-color: #15859e;
     margin-top: 10px;
 }
 
 .place-order-btn:hover {
-    background-color: #388e3c;
+    background-color: #1563a6;
 }
 

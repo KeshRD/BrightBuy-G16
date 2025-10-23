@@ -153,7 +153,7 @@ const HomePage = ({ showProductsOnly }) => {
             {/* RIGHT: Product content */}
             <div className="bb-content">
               <div className="bb-content-wrap">
-                <h2 className="bb-heading">Our Products</h2>
+                
                 <div className="bb-heading-divider" />
 
                 {/* existing product grid styles from your project */}

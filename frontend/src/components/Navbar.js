@@ -5,6 +5,7 @@ import "./navbar.css";
 import homeIcon from "../assets/home.svg";
 import cartIcon from "../assets/cart.svg";
 import userIcon from "../assets/user.svg";
+import chatIcon from "../assets/123.svg";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
@@ -251,6 +252,16 @@ const Navbar = () => {
             }}>
               <img src={cartIcon} alt="Cart" />
               {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
+            </button>
+
+            <button className="navbar-icon" onClick={() => {
+              if (!localStorage.getItem("token")) {
+                alert("Sign up/Log in to use the chatbot");
+              } else {
+                navigate("/chatbot");
+              }
+            }}>
+              <img src={chatIcon} alt="Chat" />
             </button>
 
             <div className="user-dropdown" ref={menuRef}>
