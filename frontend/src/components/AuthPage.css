@@ -29,7 +29,7 @@ html,body,#root {
 /* full page background image */
 .auth-page {
   min-height: 100vh;
-  background-image: url('C:\Users\DELL\Desktop\Bright-Buy\frontend\public\images\authpagebg.jpeg');
+
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
